@@ -15,5 +15,4 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    command: /root/virtual/bin/python3 main.py --map=3m --alg=qmix --n_epoch=201
-#    command: bash
+    command: /deps/virtual/bin/python3 main.py --map=3m --alg=qmix
