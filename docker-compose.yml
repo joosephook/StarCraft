@@ -1,0 +1,19 @@
+version: '3'
+services:
+  container:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cnt
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cnt
+    environment:
+      SC2PATH: /app/StarCraftII
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: /root/virtual/bin/python3 main.py --map=3m --alg=qmix --n_epoch=201
+#    command: bash
