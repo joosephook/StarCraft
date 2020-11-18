@@ -29,6 +29,7 @@ def get_common_args():
     parser.add_argument('--load_model', type=bool, default=False, help='whether to load the pretrained model')
     parser.add_argument('--learn', type=bool, default=True, help='whether to train the model')
     parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
+    parser.add_argument('--n_epoch', type=int, default=20000, help='number of epochs')
     args = parser.parse_args()
     return args
 
@@ -51,7 +52,9 @@ def get_coma_args(args):
     args.td_lambda = 0.8
 
     # the number of the epoch to train the agent
-    args.n_epoch = 20000
+    if not hasattr(args.n_epoch):
+        args.n_epoch = 20000
+
 
     # the number of the episodes in one epoch
     args.n_episodes = 1

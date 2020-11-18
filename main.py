@@ -1,5 +1,6 @@
 from runner import Runner
 from smac.env import StarCraft2Env
+from smac.env import MyEnv
 from common.arguments import get_common_args, get_coma_args, get_mixer_args, get_centralv_args, get_reinforce_args, get_commnet_args, get_g2anet_args
 
 
@@ -18,11 +19,13 @@ if __name__ == '__main__':
             args = get_commnet_args(args)
         if args.alg.find('g2anet') > -1:
             args = get_g2anet_args(args)
+        # env = MyEnv(map_name=args.map,
         env = StarCraft2Env(map_name=args.map,
-                            step_mul=args.step_mul,
-                            difficulty=args.difficulty,
-                            game_version=args.game_version,
-                            replay_dir=args.replay_dir)
+        # env = MyEnv(map_name=args.map,
+            step_mul=args.step_mul,
+            difficulty=args.difficulty,
+            game_version=args.game_version,
+            replay_dir=args.replay_dir)
         env_info = env.get_env_info()
         args.n_actions = env_info["n_actions"]
         args.n_agents = env_info["n_agents"]
