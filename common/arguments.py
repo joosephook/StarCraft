@@ -92,7 +92,7 @@ def get_mixer_args(args):
     args.epsilon_anneal_scale = 'step'
 
     # the number of the epoch to train the agent
-    args.n_epoch = 20000
+    args.n_epoch = 20
 
     # the number of the episodes in one epoch
     args.n_episodes = 1
