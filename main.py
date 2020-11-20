@@ -1,12 +1,12 @@
 from multiagent.core import Landmark
-import numpy as np
 
 from runner import Runner
+from smac.env import StarCraft2Env
 from common.arguments import get_common_args, get_coma_args, get_mixer_args, get_centralv_args, get_reinforce_args, get_commnet_args, get_g2anet_args
+import numpy as np
 
-from multiagent import scenarios
 from multiagent.environment import MultiAgentEnv
-
+from multiagent import scenarios
 
 def calculate_observation_structure(scenario_name, environment):
     # p_pos + p_vel
@@ -95,6 +95,7 @@ def calculate_observation_structure(scenario_name, environment):
     else:
         raise NotImplementedError(
             f'This scenario is not supported: {scenario_name}')
+
 def create_env(scenario_name, scenario_parameters={}):
     """
     Creates a multi-agent enviroment based on the scenario name and parameters
@@ -104,20 +105,23 @@ def create_env(scenario_name, scenario_parameters={}):
     """
     scenario = scenarios.load(scenario_name + ".py").Scenario()
     world = scenario.make_world(**scenario_parameters)
-    world.scenario_name = scenario_name
-
-    env = MultiAgentEnv(world, scenario.reset_world, scenario.reward,
-                        scenario.observation, discrete_action_input=True,
+    env = MultiAgentEnv(world,
+                        reset_callback=scenario.reset_world,
+                        reward_callback=scenario.reward,
+                        observation_callback=scenario.observation,
+                        discrete_action_input=True,
                         discrete_action_space=True)
-
-    observation_structures = calculate_observation_structure(scenario_name, env)
-    env.observation_structures = observation_structures
+    env.observation_structures = calculate_observation_structure(scenario_name, env)
+    # experiment with unshared reward
+    env.shared_reward = True
     env.episode_limit = 25
 
     for a in env.agents:
         a.adversary = getattr(a, 'adversary', False)
 
     return env
+
+
 
 if __name__ == '__main__':
     for i in range(1):
@@ -135,6 +139,12 @@ if __name__ == '__main__':
         if args.alg.find('g2anet') > -1:
             args = get_g2anet_args(args)
         # env = MyEnv(map_name=args.map,
+        env = StarCraft2Env(map_name=args.map,
+        # env = MyEnv(map_name=args.map,
+            step_mul=args.step_mul,
+            difficulty=args.difficulty,
+            game_version=args.game_version,
+            replay_dir=args.replay_dir)
         env = create_env('simple_spread')
         env_info = env.get_env_info()
         args.n_actions = env_info["n_actions"]
@@ -142,7 +152,6 @@ if __name__ == '__main__':
         args.state_shape = env_info["state_shape"]
         args.obs_shape = env_info["obs_shape"]
         args.episode_limit = env_info["episode_limit"]
-        print(env.get_env_info())
         runner = Runner(env, args)
         if args.learn:
             runner.run(i)

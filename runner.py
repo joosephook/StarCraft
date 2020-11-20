@@ -73,7 +73,7 @@ class Runner:
         return win_number / self.args.evaluate_epoch, episode_rewards / self.args.evaluate_epoch
 
     def plt(self, num):
-        plt.figure()
+        fig = plt.figure()
         plt.axis([0, self.args.n_epoch, 0, 100])
         plt.cla()
         plt.subplot(2, 1, 1)
@@ -89,6 +89,7 @@ class Runner:
         plt.savefig(self.save_path + '/plt_{}.png'.format(num), format='png')
         np.save(self.save_path + '/win_rates_{}'.format(num), self.win_rates)
         np.save(self.save_path + '/episode_rewards_{}'.format(num), self.episode_rewards)
+        plt.close(fig)
 
 
 
