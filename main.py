@@ -111,7 +111,7 @@ def create_env(scenario_name, scenario_parameters={}):
                         observation_callback=scenario.observation,
                         discrete_action_input=True,
                         discrete_action_space=True)
-    env.observation_structures = calculate_observation_structure(scenario_name, env)
+    # env.observation_structures = calculate_observation_structure(scenario_name, env)
     # experiment with unshared reward
     env.shared_reward = True
     env.episode_limit = 25
@@ -120,6 +120,39 @@ def create_env(scenario_name, scenario_parameters={}):
         a.adversary = getattr(a, 'adversary', False)
 
     return env
+
+class Curriculum:
+    def __init__(self, scenario_name, scenario_parameter_list):
+        self.envs = []
+        for params in scenario_parameter_list:
+            self.envs.append(create_env(scenario_name, params))
+
+        self.target_obs_structure   = self.envs[-1].get_obs_agent(0, structure=True)
+        self.target_state_structure = self.envs[-1].get_state(structure=True)
+
+        for env in self.envs:
+            env.translate_observation = self.target_obs_structure
+            env.translate_state       = self.target_state_structure
+
+        self.env_idx = 0
+        self.env = self.envs[self.env_idx]
+
+    def __getattr__(self, item):
+        return getattr(getattr(self, 'env'), item)
+
+    def advance(self, args):
+        self.env_idx += 1
+        self.env = self.envs[self.env_idx]
+
+        env_info = self.env.get_env_info()
+        args.n_actions = env_info["n_actions"]
+        args.n_agents = env_info["n_agents"]
+        args.state_shape = env_info["state_shape"]
+        args.obs_shape = env_info["obs_shape"]
+        args.episode_limit = env_info["episode_limit"]
+        # setattr(self, 'env_idx', getattr(self, 'env_idx')+1)
+        # setattr(self, 'env', getattr(self, 'envs')[getattr(self, 'env_idx')])
+
 
 
 
@@ -146,6 +179,11 @@ if __name__ == '__main__':
             game_version=args.game_version,
             replay_dir=args.replay_dir)
         env = create_env('simple_spread')
+        env = Curriculum('simple_spread', scenario_parameter_list=[
+            dict(num_agents=1, num_landmarks=1),
+            dict(num_agents=3, num_landmarks=3),
+        ])
+
         env_info = env.get_env_info()
         args.n_actions = env_info["n_actions"]
         args.n_agents = env_info["n_agents"]

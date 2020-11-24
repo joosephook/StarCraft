@@ -15,7 +15,7 @@ class Runner:
             self.rolloutWorker = CommRolloutWorker(env, self.agents, args)
         else:  # no communication agent
             self.agents = Agents(args)
-            self.rolloutWorker = RolloutWorker(env, self.agents, args)
+            self.rolloutWorker = RolloutWorker(env, self.agents, args) # TODO: when change number of agents, must create new agents.
         if args.learn and args.alg.find('coma') == -1 and args.alg.find('central_v') == -1 and args.alg.find('reinforce') == -1:  # these 3 algorithms are on-poliy
             self.buffer = ReplayBuffer(args)
         self.args = args
@@ -60,6 +60,8 @@ class Runner:
                     mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
                     self.agents.train(mini_batch, train_steps)
                     train_steps += 1
+            if epoch == 200:
+                self.env.advance(self.args)
         self.plt(num)
 
     def evaluate(self):
@@ -73,6 +75,7 @@ class Runner:
         return win_number / self.args.evaluate_epoch, episode_rewards / self.args.evaluate_epoch
 
     def plt(self, num):
+        num = 'test'
         fig = plt.figure()
         plt.axis([0, self.args.n_epoch, 0, 100])
         plt.cla()
@@ -85,6 +88,8 @@ class Runner:
         plt.plot(range(len(self.episode_rewards)), self.episode_rewards)
         plt.xlabel('epoch*{}'.format(self.args.evaluate_cycle))
         plt.ylabel('episode_rewards')
+
+        plt.tight_layout()
 
         plt.savefig(self.save_path + '/plt_{}.png'.format(num), format='png')
         np.save(self.save_path + '/win_rates_{}'.format(num), self.win_rates)

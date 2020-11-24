@@ -24,7 +24,7 @@ class RolloutWorker:
         if self.args.replay_dir != '' and evaluate and episode_num == 0:  # prepare for save replay of evaluation
             self.env.close()
         o, u, r, s, avail_u, u_onehot, terminate, padded = [], [], [], [], [], [], [], []
-        self.env.reset()
+        self.env.reset(evaluate=evaluate)
         terminated = False
         win_tag = False
         step = 0
@@ -55,7 +55,7 @@ class RolloutWorker:
             obs = self.env.get_obs()
             state = self.env.get_state()
             actions, avail_actions, actions_onehot = [], [], []
-            for agent_id in range(self.n_agents):
+            for agent_id in range(self.args.n_agents):
                 avail_action = self.env.get_avail_agent_actions(agent_id)
                 if self.args.alg == 'maven':
                     action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
