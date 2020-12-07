@@ -124,7 +124,12 @@ def create_env(scenario_name, scenario_parameters={}):
 
 
 if __name__ == '__main__':
+    import torch
     for i in range(1):
+        seed = 2**32-i-1
+        np.random.seed(seed)
+        torch.random.manual_seed(seed)
+
         args = get_common_args()
         if args.alg.find('coma') > -1:
             args = get_coma_args(args)
@@ -139,13 +144,13 @@ if __name__ == '__main__':
         if args.alg.find('g2anet') > -1:
             args = get_g2anet_args(args)
         # env = MyEnv(map_name=args.map,
-        env = StarCraft2Env(map_name=args.map,
+        # env = StarCraft2Env(map_name=args.map,
         # env = MyEnv(map_name=args.map,
-            step_mul=args.step_mul,
-            difficulty=args.difficulty,
-            game_version=args.game_version,
-            replay_dir=args.replay_dir)
-        env = create_env('simple_spread')
+        #     step_mul=args.step_mul,
+        #     difficulty=args.difficulty,
+        #     game_version=args.game_version,
+        #     replay_dir=args.replay_dir)
+        env = create_env('simple_spread', scenario_parameters=dict(num_agents=10, num_landmarks=10))
         env_info = env.get_env_info()
         args.n_actions = env_info["n_actions"]
         args.n_agents = env_info["n_agents"]

@@ -5,6 +5,39 @@ from agent.agent import Agents, CommAgents
 from common.replay_buffer import ReplayBuffer
 import matplotlib.pyplot as plt
 
+import numpy as np
+
+EPOCH=0
+
+def reset_callback(world):
+    anneal_over = 10_000
+    if EPOCH <= 10_000:
+        r = 0.1
+    if EPOCH <= 15_000:
+        r = 0.5
+    else:
+        r = 1.0
+
+    r = 1.0
+    # random properties for agents
+    for i, agent in enumerate(world.agents):
+        agent.color = np.array([0.35, 0.35, 0.85])
+    # random properties for landmarks
+    for i, landmark in enumerate(world.landmarks):
+        landmark.color = np.array([0.25, 0.25, 0.25])
+    # set random initial states
+    for agent in world.agents:
+        agent.state.p_pos = np.random.uniform(-r, +r,
+                                              world.dim_p)
+        agent.state.p_vel = np.zeros(world.dim_p)
+        agent.state.c = np.zeros(world.dim_c)
+
+    for i, landmark in enumerate(world.landmarks):
+        # landmark.state.p_pos = world.agents[i].state.p_pos + np.random.uniform(-r, +r,
+        #                                                            world.dim_p)
+        landmark.state.p_pos = np.random.uniform(-r, +r, world.dim_p)
+        landmark.state.p_vel = np.zeros(world.dim_p)
+
 
 class Runner:
     def __init__(self, env, args):
@@ -27,15 +60,21 @@ class Runner:
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
 
+        self.fig = None
+
     def run(self, num):
+        global EPOCH
         train_steps = 0
         # print('Run {} start'.format(num))
+        self.env.reset_callback = reset_callback #TODO
         for epoch in range(self.args.n_epoch):
-            print('Run {}, train epoch {}'.format(num, epoch))
+            EPOCH = epoch
+            # print('Run {}, train epoch {}'.format(num, epoch))
             if epoch % self.args.evaluate_cycle == 0:
+                # print('Run {}, train epoch {}, evaluating'.format(num, epoch))
                 win_rate, episode_reward = self.evaluate()
                 # print('win_rate is ', win_rate)
-                self.win_rates.append(win_rate)
+                self.win_rates.append(self.rolloutWorker.epsilon)
                 self.episode_rewards.append(episode_reward)
                 self.plt(num)
 
@@ -73,23 +112,28 @@ class Runner:
         return win_number / self.args.evaluate_epoch, episode_rewards / self.args.evaluate_epoch
 
     def plt(self, num):
-        fig = plt.figure()
+        if self.fig is None:
+            self.fig = plt.figure()
+
+        fig = self.fig
         plt.axis([0, self.args.n_epoch, 0, 100])
         plt.cla()
         plt.subplot(2, 1, 1)
         plt.plot(range(len(self.win_rates)), self.win_rates)
         plt.xlabel('epoch*{}'.format(self.args.evaluate_cycle))
-        plt.ylabel('win_rate')
+        plt.ylabel('epsilon')
 
         plt.subplot(2, 1, 2)
         plt.plot(range(len(self.episode_rewards)), self.episode_rewards)
         plt.xlabel('epoch*{}'.format(self.args.evaluate_cycle))
         plt.ylabel('episode_rewards')
+        plt.tight_layout()
 
         plt.savefig(self.save_path + '/plt_{}.png'.format(num), format='png')
         np.save(self.save_path + '/win_rates_{}'.format(num), self.win_rates)
         np.save(self.save_path + '/episode_rewards_{}'.format(num), self.episode_rewards)
-        plt.close(fig)
+        plt.clf()
+        # plt.close(fig)
 
 
 

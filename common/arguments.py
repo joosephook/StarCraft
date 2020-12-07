@@ -82,17 +82,17 @@ def get_mixer_args(args):
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
-    args.lr = 5e-4
+    args.lr = 1e-7
 
     # epsilon greedy
     args.epsilon = 1
     args.min_epsilon = 0.05
-    anneal_steps = 50000
+    anneal_steps = 500_000
     args.anneal_epsilon = (args.epsilon - args.min_epsilon) / anneal_steps
     args.epsilon_anneal_scale = 'step'
 
     # the number of the epoch to train the agent
-    args.n_epoch = 20
+    args.n_epoch = 100_000
 
     # the number of the episodes in one epoch
     args.n_episodes = 1
