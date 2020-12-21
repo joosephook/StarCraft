@@ -60,8 +60,9 @@ class Runner:
                     mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
                     self.agents.train(mini_batch, train_steps)
                     train_steps += 1
-            if epoch == 200:
+            if epoch == 10000:
                 self.env.advance(self.args)
+                self.buffer.create(self.buffer.args)
         self.plt(num)
 
     def evaluate(self):
@@ -75,7 +76,7 @@ class Runner:
         return win_number / self.args.evaluate_epoch, episode_rewards / self.args.evaluate_epoch
 
     def plt(self, num):
-        num = 'test'
+        # num = 'test'
         fig = plt.figure()
         plt.axis([0, self.args.n_epoch, 0, 100])
         plt.cla()

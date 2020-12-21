@@ -18,10 +18,17 @@ class QMIX:
             input_shape += self.n_agents
 
         # 神经网络
+        # output is args.n_actions, independent of num. of agents
         self.eval_rnn = RNN(input_shape, args)  # 每个agent选动作的网络
         self.target_rnn = RNN(input_shape, args)
+        
+        # TODO: temporarily set num_agents to 3
+        args.n_agents = 3
         self.eval_qmix_net = QMixNet(args)  # 把agentsQ值加起来的网络
         self.target_qmix_net = QMixNet(args)
+        args.n_agents = 1
+        # TODO: set num_agents back to 1
+
         self.args = args
         if self.args.cuda:
             self.eval_rnn.cuda()
@@ -151,8 +158,8 @@ class QMIX:
             q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
 
             # 把q_eval维度重新变回(8, 5,n_actions)
-            q_eval = q_eval.view(episode_num, self.n_agents, -1)
-            q_target = q_target.view(episode_num, self.n_agents, -1)
+            q_eval = q_eval.view(episode_num, self.args.n_agents, -1)
+            q_target = q_target.view(episode_num, self.args.n_agents, -1)
             q_evals.append(q_eval)
             q_targets.append(q_target)
         # 得的q_eval和q_target是一个列表，列表里装着max_episode_len个数组，数组的的维度是(episode个数, n_agents，n_actions)
@@ -163,8 +170,10 @@ class QMIX:
 
     def init_hidden(self, episode_num):
         # 为每个episode中的每个agent都初始化一个eval_hidden、target_hidden
-        self.eval_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
-        self.target_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
+        # self.eval_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
+        # self.target_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
+        self.eval_hidden = torch.zeros((episode_num, self.args.n_agents, self.args.rnn_hidden_dim)) #TODO: again, get n_agents from self.args instead of self.n_agents
+        self.target_hidden = torch.zeros((episode_num, self.args.n_agents, self.args.rnn_hidden_dim))
 
     def save_model(self, train_step):
         num = str(train_step // self.args.save_cycle)

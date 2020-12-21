@@ -27,10 +27,28 @@ class ReplayBuffer:
                         'padded': np.empty([self.size, self.episode_limit, 1]),
                         'terminated': np.empty([self.size, self.episode_limit, 1])
                         }
+        self.create(self.args)
         if self.args.alg == 'maven':
             self.buffers['z'] = np.empty([self.size, self.args.noise_dim])
         # thread lock
         self.lock = threading.Lock()
+
+    def create(self, args):
+        # memory management
+        self.current_idx = 0
+        self.current_size = 0
+        self.buffers =  {'o': np.empty([args.buffer_size, args.episode_limit, args.n_agents, args.obs_shape]),
+                        'u': np.empty([args.buffer_size, args.episode_limit, args.n_agents, 1]),
+                        's': np.empty([args.buffer_size, args.episode_limit, args.state_shape]),
+                        'r': np.empty([args.buffer_size, args.episode_limit, 1]),
+                        'o_next': np.empty([args.buffer_size, args.episode_limit, args.n_agents, args.obs_shape]),
+                        's_next': np.empty([args.buffer_size, args.episode_limit, args.state_shape]),
+                        'avail_u': np.empty([args.buffer_size, args.episode_limit, args.n_agents, args.n_actions]),
+                        'avail_u_next': np.empty([args.buffer_size, args.episode_limit, args.n_agents, args.n_actions]),
+                        'u_onehot': np.empty([args.buffer_size, args.episode_limit, args.n_agents, args.n_actions]),
+                        'padded': np.empty([args.buffer_size, args.episode_limit, 1]),
+                        'terminated': np.empty([args.buffer_size, args.episode_limit, 1])
+                        }
 
         # store the episode
     def store_episode(self, episode_batch):
@@ -38,7 +56,7 @@ class ReplayBuffer:
         with self.lock:
             idxs = self._get_storage_idx(inc=batch_size)
             # store the informations
-            self.buffers['o'][idxs] = episode_batch['o']
+            self.buffers['o'][idxs] = episode_batch['o'] # TODO: self.buffers size needs to change
             self.buffers['u'][idxs] = episode_batch['u']
             self.buffers['s'][idxs] = episode_batch['s']
             self.buffers['r'][idxs] = episode_batch['r']
@@ -46,6 +64,7 @@ class ReplayBuffer:
             self.buffers['s_next'][idxs] = episode_batch['s_next']
             self.buffers['avail_u'][idxs] = episode_batch['avail_u']
             self.buffers['avail_u_next'][idxs] = episode_batch['avail_u_next']
+            # assert 0, "Find out why sizes mismatch"
             self.buffers['u_onehot'][idxs] = episode_batch['u_onehot']
             self.buffers['padded'][idxs] = episode_batch['padded']
             self.buffers['terminated'][idxs] = episode_batch['terminated']

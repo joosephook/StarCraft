@@ -45,13 +45,14 @@ class Agents:
 
         # transform agent_num to onehot vector
         agent_id = np.zeros(self.n_agents)
+        agent_id = np.zeros(self.args.n_agents) # TODO, should only take num. of agents from the same place
         agent_id[agent_num] = 1.
 
         if self.args.last_action:
             inputs = np.hstack((inputs, last_action))
         if self.args.reuse_network:
             inputs = np.hstack((inputs, agent_id))
-        hidden_state = self.policy.eval_hidden[:, agent_num, :]
+        hidden_state = self.policy.eval_hidden[:, agent_num, :] # TODO: eval_hidden in policy depends on num of agents
 
         # transform the shape of inputs from (42,) to (1,42)
         inputs = torch.tensor(inputs, dtype=torch.float32).unsqueeze(0)

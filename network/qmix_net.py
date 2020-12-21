@@ -39,10 +39,12 @@ class QMixNet(nn.Module):
         q_values = q_values.view(-1, 1, self.args.n_agents)  # (episode_num * max_episode_len, 1, n_agents) = (1920,1,5)
         states = states.reshape(-1, self.args.state_shape)  # (episode_num * max_episode_len, state_shape)
 
-        w1 = torch.abs(self.hyper_w1(states))  # (1920, 160)
+        # take only the output we need for n_agents
+        w1 = torch.abs(self.hyper_w1(states))[:, :self.args.n_agents*self.args.qmix_hidden_dim]  # (1920, 160)
         b1 = self.hyper_b1(states)  # (1920, 32)
 
         w1 = w1.view(-1, self.args.n_agents, self.args.qmix_hidden_dim)  # (1920, 5, 32)
+        # TODO: shape mismatch if use hyper_w1 created for n=1 agents with n=3 agents
         b1 = b1.view(-1, 1, self.args.qmix_hidden_dim)  # (1920, 1, 32)
 
         hidden = F.elu(torch.bmm(q_values, w1) + b1)  # (1920, 1, 32)
