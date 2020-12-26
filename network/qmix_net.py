@@ -15,13 +15,13 @@ class QMixNet(nn.Module):
         if args.two_hyper_layers:
             self.hyper_w1 = nn.Sequential(nn.Linear(args.state_shape, args.hyper_hidden_dim),
                                           nn.ReLU(),
-                                          nn.Linear(args.hyper_hidden_dim, args.n_agents * args.qmix_hidden_dim))
+                                          nn.Linear(args.hyper_hidden_dim, args.n_agents_max * args.qmix_hidden_dim))
             # 经过hyper_w2得到(经验条数, 1)的矩阵
             self.hyper_w2 = nn.Sequential(nn.Linear(args.state_shape, args.hyper_hidden_dim),
                                           nn.ReLU(),
                                           nn.Linear(args.hyper_hidden_dim, args.qmix_hidden_dim))
         else:
-            self.hyper_w1 = nn.Linear(args.state_shape, args.n_agents * args.qmix_hidden_dim)
+            self.hyper_w1 = nn.Linear(args.state_shape, args.n_agents_max * args.qmix_hidden_dim)
             # 经过hyper_w2得到(经验条数, 1)的矩阵
             self.hyper_w2 = nn.Linear(args.state_shape, args.qmix_hidden_dim * 1)
 

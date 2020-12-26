@@ -23,10 +23,10 @@ class QMIX:
         self.target_rnn = RNN(input_shape, args)
         
         # TODO: temporarily set num_agents to 3
-        args.n_agents = 3
+        # args.n_agents = 3
         self.eval_qmix_net = QMixNet(args)  # 把agentsQ值加起来的网络
         self.target_qmix_net = QMixNet(args)
-        args.n_agents = 1
+        # args.n_agents = 1
         # TODO: set num_agents back to 1
 
         self.args = args

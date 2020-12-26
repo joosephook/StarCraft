@@ -121,7 +121,7 @@ def create_env(scenario_name, scenario_parameters={}):
     return env
 
 class Curriculum:
-    def __init__(self, scenario_name, scenario_parameter_list):
+    def __init__(self, scenario_name, scenario_parameter_list, args, episode_limits):
         self.envs = []
         for params in scenario_parameter_list:
             self.envs.append(create_env(scenario_name, params))
@@ -135,8 +135,22 @@ class Curriculum:
 
         self.env_idx = 0
         self.env = self.envs[self.env_idx]
+        self.resets = 0
+        self.num_episodes = self.env.num_episodes
+        self.episode_limits = episode_limits
+        self.episode_limit_idx = 0
+        self.args = args
+        self.runner = None
+        self.args.n_agents_max = scenario_parameter_list[-1]['num_agents']
+
 
     def __getattr__(self, item):
+        if item == 'reset':
+            if len(self.episode_limits) and self.env.num_episodes >= self.episode_limits[self.episode_limit_idx]:
+                self.episode_limit_idx += 1
+                self.episode_limits.pop(0)
+                self.advance(self.args)
+
         return getattr(getattr(self, 'env'), item)
 
     def advance(self, args):
@@ -149,15 +163,20 @@ class Curriculum:
         args.state_shape = env_info["state_shape"]
         args.obs_shape = env_info["obs_shape"]
         args.episode_limit = env_info["episode_limit"]
+        print('old episodes', self.env.num_episodes)
+        self.num_episodes = self.env.num_episodes
+        print('new episodes', self.num_episodes)
+        self.runner.buffer.create(args)
         # setattr(self, 'env_idx', getattr(self, 'env_idx')+1)
         # setattr(self, 'env', getattr(self, 'envs')[getattr(self, 'env_idx')])
 
 
 
 
+
 if __name__ == '__main__':
     import torch
-    for i in range(1):
+    for i in range(5):
         seed = 2**32-i-1
         np.random.seed(seed)
         torch.random.manual_seed(seed)
@@ -186,7 +205,7 @@ if __name__ == '__main__':
         env = Curriculum('simple_spread', scenario_parameter_list=[
             dict(num_agents=1, num_landmarks=1),
             dict(num_agents=3, num_landmarks=3),
-        ])
+        ], args=args, episode_limits=[100*i])
 
         env_info = env.get_env_info()
         args.n_actions = env_info["n_actions"]

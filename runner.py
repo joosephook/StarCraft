@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 class Runner:
     def __init__(self, env, args):
         self.env = env
+        self.env.runner = self
 
         if args.alg.find('commnet') > -1 or args.alg.find('g2anet') > -1:  # communication agent
             self.agents = CommAgents(args)
@@ -60,9 +61,6 @@ class Runner:
                     mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
                     self.agents.train(mini_batch, train_steps)
                     train_steps += 1
-            if epoch == 10000:
-                self.env.advance(self.args)
-                self.buffer.create(self.buffer.args)
         self.plt(num)
 
     def evaluate(self):
