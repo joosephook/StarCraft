@@ -1,7 +1,6 @@
 from multiagent.core import Landmark
 
 from runner import Runner
-from smac.env import StarCraft2Env
 from common.arguments import get_common_args, get_coma_args, get_mixer_args, get_centralv_args, get_reinforce_args, get_commnet_args, get_g2anet_args
 import numpy as np
 
@@ -195,13 +194,6 @@ if __name__ == '__main__':
         if args.alg.find('g2anet') > -1:
             args = get_g2anet_args(args)
         # env = MyEnv(map_name=args.map,
-        env = StarCraft2Env(map_name=args.map,
-        # env = MyEnv(map_name=args.map,
-            step_mul=args.step_mul,
-            difficulty=args.difficulty,
-            game_version=args.game_version,
-            replay_dir=args.replay_dir)
-        env = create_env('simple_spread')
         env = Curriculum('simple_spread', scenario_parameter_list=[
             dict(num_agents=1, num_landmarks=1),
             dict(num_agents=3, num_landmarks=3),
