@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 
 class Runner:
     def __init__(self, env, args):
+        # TODO: refactor references to args to be to self.env.args, that way we can
+        #  change just env.args and the changes will propagate nicely.
         self.env = env
         self.env.runner = self
 

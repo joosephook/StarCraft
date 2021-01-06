@@ -1,3 +1,5 @@
+from argparse import Namespace
+
 from multiagent.core import Landmark
 
 from runner import Runner
@@ -120,10 +122,8 @@ def create_env(scenario_name, scenario_parameters={}):
     return env
 
 class Curriculum:
-    def __init__(self, scenario_name, scenario_parameter_list, args, episode_limits):
-        self.envs = []
-        for params in scenario_parameter_list:
-            self.envs.append(create_env(scenario_name, params))
+    def __init__(self, envs, episode_limits):
+        self.envs = envs
 
         self.target_obs_structure   = self.envs[-1].get_obs_agent(0, structure=True)
         self.target_state_structure = self.envs[-1].get_state(structure=True)
@@ -141,6 +141,7 @@ class Curriculum:
         self.args = args
         self.runner = None
         self.args.n_agents_max = scenario_parameter_list[-1]['num_agents']
+        self.train = True
 
 
     def __getattr__(self, item):
@@ -169,7 +170,14 @@ class Curriculum:
         # setattr(self, 'env_idx', getattr(self, 'env_idx')+1)
         # setattr(self, 'env', getattr(self, 'envs')[getattr(self, 'env_idx')])
 
-
+    def update_args(self, args):
+        env_info = self.env.get_env_info()
+        args.n_actions = env_info["n_actions"]
+        args.n_agents = env_info["n_agents"]
+        args.state_shape = env_info["state_shape"]
+        args.obs_shape = env_info["obs_shape"]
+        args.episode_limit = env_info["episode_limit"]
+        print('old episodes', self.env.num_episodes)
 
 
 
@@ -194,10 +202,27 @@ if __name__ == '__main__':
         if args.alg.find('g2anet') > -1:
             args = get_g2anet_args(args)
         # env = MyEnv(map_name=args.map,
-        env = Curriculum('simple_spread', scenario_parameter_list=[
+        envs = []
+        scenario_parameter_list = [
             dict(num_agents=1, num_landmarks=1),
             dict(num_agents=3, num_landmarks=3),
-        ], args=args, episode_limits=[100*i])
+            dict(num_agents=3, num_landmarks=3),
+        ]
+
+        for params in scenario_parameter_list:
+            env = create_env('simple_spread', scenario_parameters=params)
+            arg = Namespace(**dict(**vars(args)))
+
+            env_info = env.get_env_info()
+            arg.n_actions = env_info["n_actions"]
+            arg.n_agents = env_info["n_agents"]
+            arg.state_shape = env_info["state_shape"]
+            arg.obs_shape = env_info["obs_shape"]
+            arg.episode_limit = env_info["episode_limit"]
+            env.args = arg
+            envs.append(env)
+
+        env = Curriculum(envs, episode_limits=[100*i])
 
         env_info = env.get_env_info()
         args.n_actions = env_info["n_actions"]

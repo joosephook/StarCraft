@@ -24,6 +24,7 @@ class RolloutWorker:
         if self.args.replay_dir != '' and evaluate and episode_num == 0:  # prepare for save replay of evaluation
             self.env.close()
         o, u, r, s, avail_u, u_onehot, terminate, padded = [], [], [], [], [], [], [], []
+
         self.env.reset(evaluate=evaluate)
         terminated = False
         win_tag = False
