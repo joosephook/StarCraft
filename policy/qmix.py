@@ -5,7 +5,8 @@ from network.qmix_net import QMixNet
 
 
 class QMIX:
-    def __init__(self, env, args):
+    def __init__(self, env, args, timestamp):
+        self.timestamp = timestamp
         self.env = env
         self.n_actions = args.n_actions
         self.n_agents = args.n_agents
@@ -180,5 +181,5 @@ class QMIX:
         num = str(train_step // self.args.save_cycle)
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
-        torch.save(self.eval_qmix_net.state_dict(), self.model_dir + '/' + num + '_qmix_net_params.pkl')
-        torch.save(self.eval_rnn.state_dict(),  self.model_dir + '/' + num + '_rnn_net_params.pkl')
+        torch.save(self.eval_qmix_net.state_dict(), self.model_dir + '/' + str(self.timestamp) + '_qmix_net_params.pkl')
+        torch.save(self.eval_rnn.state_dict(),  self.model_dir + '/' + str(self.timestamp) + '_rnn_net_params.pkl')

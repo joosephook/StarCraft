@@ -19,7 +19,7 @@ class Runner:
             self.agents = CommAgents(args)
             self.rolloutWorker = CommRolloutWorker(env, self.agents, args)
         else:  # no communication agent
-            self.agents = Agents(env, args)
+            self.agents = Agents(env, args, self.timestamp)
             self.rolloutWorker = RolloutWorker(env, self.agents, args) # TODO: when change number of agents, must create new agents.
         # if args.learn and args.alg.find('coma') == -1 and args.alg.find('central_v') == -1 and args.alg.find('reinforce') == -1:  # these 3 algorithms are on-poliy
         #     self.buffer = ReplayBuffer(args)
