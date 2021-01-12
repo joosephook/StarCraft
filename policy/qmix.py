@@ -5,7 +5,8 @@ from network.qmix_net import QMixNet
 
 
 class QMIX:
-    def __init__(self, args):
+    def __init__(self, env, args):
+        self.env = env
         self.n_actions = args.n_actions
         self.n_agents = args.n_agents
         self.state_shape = args.state_shape
@@ -24,8 +25,8 @@ class QMIX:
         
         # TODO: temporarily set num_agents to 3
         # args.n_agents = 3
-        self.eval_qmix_net = QMixNet(args)  # 把agentsQ值加起来的网络
-        self.target_qmix_net = QMixNet(args)
+        self.eval_qmix_net = QMixNet(env, args)  # 把agentsQ值加起来的网络
+        self.target_qmix_net = QMixNet(env, args)
         # args.n_agents = 1
         # TODO: set num_agents back to 1
 
@@ -136,12 +137,12 @@ class QMIX:
             # 因为当前的obs三维的数据，每一维分别代表(episode编号，agent编号，obs维度)，直接在dim_1上添加对应的向量
             # 即可，比如给agent_0后面加(1, 0, 0, 0, 0)，表示5个agent中的0号。而agent_0的数据正好在第0行，那么需要加的
             # agent编号恰好就是一个单位矩阵，即对角线为1，其余为0
-            inputs.append(torch.eye(self.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
-            inputs_next.append(torch.eye(self.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
+            inputs.append(torch.eye(self.env.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
+            inputs_next.append(torch.eye(self.env.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
         # 要把obs中的三个拼起来，并且要把episode_num个episode、self.args.n_agents个agent的数据拼成40条(40,96)的数据，
         # 因为这里所有agent共享一个神经网络，每条数据中带上了自己的编号，所以还是自己的数据
-        inputs = torch.cat([x.reshape(episode_num * self.args.n_agents, -1) for x in inputs], dim=1)
-        inputs_next = torch.cat([x.reshape(episode_num * self.args.n_agents, -1) for x in inputs_next], dim=1)
+        inputs = torch.cat([x.reshape(episode_num * self.env.args.n_agents, -1) for x in inputs], dim=1)
+        inputs_next = torch.cat([x.reshape(episode_num * self.env.args.n_agents, -1) for x in inputs_next], dim=1)
         return inputs, inputs_next
 
     def get_q_values(self, batch, max_episode_len):
@@ -158,8 +159,8 @@ class QMIX:
             q_target, self.target_hidden = self.target_rnn(inputs_next, self.target_hidden)
 
             # 把q_eval维度重新变回(8, 5,n_actions)
-            q_eval = q_eval.view(episode_num, self.args.n_agents, -1)
-            q_target = q_target.view(episode_num, self.args.n_agents, -1)
+            q_eval = q_eval.view(episode_num, self.env.args.n_agents, -1)
+            q_target = q_target.view(episode_num, self.env.args.n_agents, -1)
             q_evals.append(q_eval)
             q_targets.append(q_target)
         # 得的q_eval和q_target是一个列表，列表里装着max_episode_len个数组，数组的的维度是(episode个数, n_agents，n_actions)
@@ -172,8 +173,8 @@ class QMIX:
         # 为每个episode中的每个agent都初始化一个eval_hidden、target_hidden
         # self.eval_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
         # self.target_hidden = torch.zeros((episode_num, self.n_agents, self.args.rnn_hidden_dim))
-        self.eval_hidden = torch.zeros((episode_num, self.args.n_agents, self.args.rnn_hidden_dim)) #TODO: again, get n_agents from self.args instead of self.n_agents
-        self.target_hidden = torch.zeros((episode_num, self.args.n_agents, self.args.rnn_hidden_dim))
+        self.eval_hidden = torch.zeros((episode_num, self.env.args.n_agents, self.env.args.rnn_hidden_dim)) #TODO: again, get n_agents from self.args instead of self.n_agents
+        self.target_hidden = torch.zeros((episode_num, self.env.args.n_agents, self.env.args.rnn_hidden_dim))
 
     def save_model(self, train_step):
         num = str(train_step // self.args.save_cycle)

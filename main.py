@@ -121,69 +121,42 @@ def create_env(scenario_name, scenario_parameters={}):
 
     return env
 
+from common.replay_buffer import ReplayBuffer
 class Curriculum:
     def __init__(self, envs, episode_limits):
         self.envs = envs
-
-        self.target_obs_structure   = self.envs[-1].get_obs_agent(0, structure=True)
-        self.target_state_structure = self.envs[-1].get_state(structure=True)
-
-        for env in self.envs:
-            env.translate_observation = self.target_obs_structure
-            env.translate_state       = self.target_state_structure
-
         self.env_idx = 0
         self.env = self.envs[self.env_idx]
-        self.resets = 0
-        self.num_episodes = self.env.num_episodes
         self.episode_limits = episode_limits
         self.episode_limit_idx = 0
-        self.args = args
         self.runner = None
-        self.args.n_agents_max = scenario_parameter_list[-1]['num_agents']
-        self.train = True
-
+        self.env.args.n_agents_max = scenario_parameter_list[-1]['num_agents']
+        self._train = True
 
     def __getattr__(self, item):
         if item == 'reset':
-            if len(self.episode_limits) and self.env.num_episodes >= self.episode_limits[self.episode_limit_idx]:
+            if self._train and len(self.episode_limits) and self.env.num_episodes >= self.episode_limits[self.episode_limit_idx]:
+                print(f'Old env @ {self.env.num_episodes} episodes w/ {self.env.args.n_agents} agents')
                 self.episode_limit_idx += 1
                 self.episode_limits.pop(0)
-                self.advance(self.args)
+                self.env_idx += 1
+                self.env = self.envs[self.env_idx]
+                print(f'Now have {self.env.args.n_agents} agents')
 
         return getattr(getattr(self, 'env'), item)
 
-    def advance(self, args):
-        self.env_idx += 1
-        self.env = self.envs[self.env_idx]
+    def train(self):
+        self.env = envs[self.env_idx]
+        self._train = True
 
-        env_info = self.env.get_env_info()
-        args.n_actions = env_info["n_actions"]
-        args.n_agents = env_info["n_agents"]
-        args.state_shape = env_info["state_shape"]
-        args.obs_shape = env_info["obs_shape"]
-        args.episode_limit = env_info["episode_limit"]
-        print('old episodes', self.env.num_episodes)
-        self.num_episodes = self.env.num_episodes
-        print('new episodes', self.num_episodes)
-        self.runner.buffer.create(args)
-        # setattr(self, 'env_idx', getattr(self, 'env_idx')+1)
-        # setattr(self, 'env', getattr(self, 'envs')[getattr(self, 'env_idx')])
-
-    def update_args(self, args):
-        env_info = self.env.get_env_info()
-        args.n_actions = env_info["n_actions"]
-        args.n_agents = env_info["n_agents"]
-        args.state_shape = env_info["state_shape"]
-        args.obs_shape = env_info["obs_shape"]
-        args.episode_limit = env_info["episode_limit"]
-        print('old episodes', self.env.num_episodes)
-
+    def eval(self):
+        self.env = self.envs[-1]
+        self._train = False
 
 
 if __name__ == '__main__':
     import torch
-    for i in range(5):
+    for i in [0]:
         seed = 2**32-i-1
         np.random.seed(seed)
         torch.random.manual_seed(seed)
@@ -205,14 +178,22 @@ if __name__ == '__main__':
         envs = []
         scenario_parameter_list = [
             dict(num_agents=1, num_landmarks=1),
-            dict(num_agents=3, num_landmarks=3),
-            dict(num_agents=3, num_landmarks=3),
+            dict(num_agents=10, num_landmarks=10),
+            dict(num_agents=10, num_landmarks=10),
         ]
+        args.n_agents_max = scenario_parameter_list[-1]['num_agents']
 
         for params in scenario_parameter_list:
             env = create_env('simple_spread', scenario_parameters=params)
-            arg = Namespace(**dict(**vars(args)))
+            envs.append(env)
 
+        target_obs_structure   = envs[-1].get_obs_agent(0, structure=True)
+        target_state_structure = envs[-1].get_state(structure=True)
+
+        for env in envs:
+            env.translate_observation = target_obs_structure
+            env.translate_state       = target_state_structure
+            arg = Namespace(**dict(**vars(args)))
             env_info = env.get_env_info()
             arg.n_actions = env_info["n_actions"]
             arg.n_agents = env_info["n_agents"]
@@ -220,9 +201,9 @@ if __name__ == '__main__':
             arg.obs_shape = env_info["obs_shape"]
             arg.episode_limit = env_info["episode_limit"]
             env.args = arg
-            envs.append(env)
+            env.buffer = ReplayBuffer(arg)
 
-        env = Curriculum(envs, episode_limits=[100*i])
+        env = Curriculum(envs, episode_limits=[5000*i])
 
         env_info = env.get_env_info()
         args.n_actions = env_info["n_actions"]

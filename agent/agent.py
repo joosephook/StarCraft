@@ -13,7 +13,8 @@ from torch.distributions import Categorical
 
 # Agent no communication
 class Agents:
-    def __init__(self, args):
+    def __init__(self, env, args):
+        self.env = env
         self.n_actions = args.n_actions
         self.n_agents = args.n_agents
         self.state_shape = args.state_shape
@@ -21,7 +22,7 @@ class Agents:
         if args.alg == 'vdn':
             self.policy = VDN(args)
         elif args.alg == 'qmix':
-            self.policy = QMIX(args)
+            self.policy = QMIX(env, args)
         elif args.alg == 'coma':
             self.policy = COMA(args)
         elif args.alg == 'qtran_alt':
@@ -46,6 +47,7 @@ class Agents:
         # transform agent_num to onehot vector
         agent_id = np.zeros(self.n_agents)
         agent_id = np.zeros(self.args.n_agents) # TODO, should only take num. of agents from the same place
+        agent_id = np.zeros(self.env.args.n_agents) # TODO, should only take num. of agents from the same place
         agent_id[agent_num] = 1.
 
         if self.args.last_action:

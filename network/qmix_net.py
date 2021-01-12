@@ -4,8 +4,9 @@ import torch.nn.functional as F
 
 
 class QMixNet(nn.Module):
-    def __init__(self, args):
+    def __init__(self, env, args):
         super(QMixNet, self).__init__()
+        self.env = env
         self.args = args
         # 因为生成的hyper_w1需要是一个矩阵，而pytorch神经网络只能输出一个向量，
         # 所以就先输出长度为需要的 矩阵行*矩阵列 的向量，然后再转化成矩阵
@@ -36,14 +37,14 @@ class QMixNet(nn.Module):
     def forward(self, q_values, states):  # states的shape为(episode_num, max_episode_len， state_shape)
         # 传入的q_values是三维的，shape为(episode_num, max_episode_len， n_agents)
         episode_num = q_values.size(0)
-        q_values = q_values.view(-1, 1, self.args.n_agents)  # (episode_num * max_episode_len, 1, n_agents) = (1920,1,5)
-        states = states.reshape(-1, self.args.state_shape)  # (episode_num * max_episode_len, state_shape)
+        q_values = q_values.view(-1, 1, self.env.args.n_agents)  # (episode_num * max_episode_len, 1, n_agents) = (1920,1,5)
+        states = states.reshape(-1, self.env.args.state_shape)  # (episode_num * max_episode_len, state_shape)
 
         # take only the output we need for n_agents
-        w1 = torch.abs(self.hyper_w1(states))[:, :self.args.n_agents*self.args.qmix_hidden_dim]  # (1920, 160)
+        w1 = torch.abs(self.hyper_w1(states))[:, :self.env.args.n_agents*self.env.args.qmix_hidden_dim]  # (1920, 160)
         b1 = self.hyper_b1(states)  # (1920, 32)
 
-        w1 = w1.view(-1, self.args.n_agents, self.args.qmix_hidden_dim)  # (1920, 5, 32)
+        w1 = w1.view(-1, self.env.args.n_agents, self.env.args.qmix_hidden_dim)  # (1920, 5, 32)
         # TODO: shape mismatch if use hyper_w1 created for n=1 agents with n=3 agents
         b1 = b1.view(-1, 1, self.args.qmix_hidden_dim)  # (1920, 1, 32)
 

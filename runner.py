@@ -4,12 +4,14 @@ from common.rollout import RolloutWorker, CommRolloutWorker
 from agent.agent import Agents, CommAgents
 from common.replay_buffer import ReplayBuffer
 import matplotlib.pyplot as plt
+import time
 
 
 class Runner:
     def __init__(self, env, args):
         # TODO: refactor references to args to be to self.env.args, that way we can
         #  change just env.args and the changes will propagate nicely.
+        self.timestamp = int(time.time())
         self.env = env
         self.env.runner = self
 
@@ -17,10 +19,11 @@ class Runner:
             self.agents = CommAgents(args)
             self.rolloutWorker = CommRolloutWorker(env, self.agents, args)
         else:  # no communication agent
-            self.agents = Agents(args)
+            self.agents = Agents(env, args)
             self.rolloutWorker = RolloutWorker(env, self.agents, args) # TODO: when change number of agents, must create new agents.
-        if args.learn and args.alg.find('coma') == -1 and args.alg.find('central_v') == -1 and args.alg.find('reinforce') == -1:  # these 3 algorithms are on-poliy
-            self.buffer = ReplayBuffer(args)
+        # if args.learn and args.alg.find('coma') == -1 and args.alg.find('central_v') == -1 and args.alg.find('reinforce') == -1:  # these 3 algorithms are on-poliy
+        #     self.buffer = ReplayBuffer(args)
+
         self.args = args
         self.win_rates = []
         self.episode_rewards = []
@@ -34,7 +37,8 @@ class Runner:
         train_steps = 0
         # print('Run {} start'.format(num))
         for epoch in range(self.args.n_epoch):
-            print('Run {}, train epoch {}'.format(num, epoch))
+            if epoch % 100 == 0:
+                print('Run {}, train epoch {}'.format(num, epoch))
             if epoch % self.args.evaluate_cycle == 0:
                 win_rate, episode_reward = self.evaluate()
                 # print('win_rate is ', win_rate)
@@ -58,9 +62,11 @@ class Runner:
                 self.agents.train(episode_batch, train_steps, self.rolloutWorker.epsilon)
                 train_steps += 1
             else:
-                self.buffer.store_episode(episode_batch)
+                # self.buffer.store_episode(episode_batch)
+                self.env.buffer.store_episode(episode_batch)
                 for train_step in range(self.args.train_steps):
-                    mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
+                    # mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
+                    mini_batch = self.env.buffer.sample(min(self.env.buffer.current_size, self.args.batch_size))
                     self.agents.train(mini_batch, train_steps)
                     train_steps += 1
         self.plt(num)
@@ -68,12 +74,15 @@ class Runner:
     def evaluate(self):
         win_number = 0
         episode_rewards = 0
+        self.env.eval()
         for epoch in range(self.args.evaluate_epoch):
             _, episode_reward, win_tag = self.rolloutWorker.generate_episode(epoch, evaluate=True)
             episode_rewards += episode_reward
             if win_tag:
                 win_number += 1
+        self.env.train()
         return win_number / self.args.evaluate_epoch, episode_rewards / self.args.evaluate_epoch
+
 
     def plt(self, num):
         # num = 'test'
@@ -91,9 +100,9 @@ class Runner:
         plt.ylabel('episode_rewards')
         plt.tight_layout()
 
-        plt.savefig(self.save_path + '/plt_{}.png'.format(num), format='png')
-        np.save(self.save_path + '/win_rates_{}'.format(num), self.win_rates)
-        np.save(self.save_path + '/episode_rewards_{}'.format(num), self.episode_rewards)
+        plt.savefig(self.save_path + '/plt_{}_{}.png'.format(num, self.timestamp), format='png')
+        np.save(self.save_path + '/win_rates_{}_{}'.format(num, self.timestamp), self.win_rates)
+        np.save(self.save_path + '/episode_rewards_{}_{}'.format(num, self.timestamp), self.episode_rewards)
         plt.close(fig)
 
 

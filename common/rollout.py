@@ -30,7 +30,7 @@ class RolloutWorker:
         win_tag = False
         step = 0
         episode_reward = 0  # cumulative rewards
-        last_action = np.zeros((self.args.n_agents, self.args.n_actions))
+        last_action = np.zeros((self.env.args.n_agents, self.env.args.n_actions))
         self.agents.policy.init_hidden(1)
 
         # epsilon
@@ -56,7 +56,7 @@ class RolloutWorker:
             obs = self.env.get_obs()
             state = self.env.get_state()
             actions, avail_actions, actions_onehot = [], [], []
-            for agent_id in range(self.args.n_agents):
+            for agent_id in range(self.env.args.n_agents):
                 avail_action = self.env.get_avail_agent_actions(agent_id)
                 if self.args.alg == 'maven':
                     action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
@@ -77,7 +77,7 @@ class RolloutWorker:
             o.append(obs)
             s.append(state)
             # u.append(np.reshape(actions, [self.n_agents, 1]))
-            u.append(np.reshape(actions, [self.args.n_agents, 1])) # TODO
+            u.append(np.reshape(actions, [self.env.args.n_agents, 1])) # TODO
             u_onehot.append(actions_onehot)
             avail_u.append(avail_actions)
             r.append([reward])
@@ -96,7 +96,7 @@ class RolloutWorker:
         s = s[:-1]
         # get avail_action for last obs，because target_q needs avail_action in training
         avail_actions = []
-        for agent_id in range(self.args.n_agents):
+        for agent_id in range(self.env.args.n_agents):
             avail_action = self.env.get_avail_agent_actions(agent_id)
             avail_actions.append(avail_action)
         avail_u.append(avail_actions)
@@ -107,19 +107,19 @@ class RolloutWorker:
         for i in range(step, self.episode_limit):
             # o.append(np.zeros((self.n_agents, self.obs_shape)))
             # u.append(np.zeros([self.n_agents, 1]))
-            o.append(np.zeros((self.args.n_agents, self.obs_shape)))
-            u.append(np.zeros([self.args.n_agents, 1]))
+            o.append(np.zeros((self.env.args.n_agents, self.obs_shape)))
+            u.append(np.zeros([self.env.args.n_agents, 1]))
             s.append(np.zeros(self.state_shape))
             r.append([0.])
             # o_next.append(np.zeros((self.n_agents, self.obs_shape)))
-            o_next.append(np.zeros((self.args.n_agents, self.obs_shape)))
+            o_next.append(np.zeros((self.env.args.n_agents, self.obs_shape)))
             s_next.append(np.zeros(self.state_shape))
             # u_onehot.append(np.zeros((self.n_agents, self.n_actions)))
             # avail_u.append(np.zeros((self.n_agents, self.n_actions)))
             # avail_u_next.append(np.zeros((self.n_agents, self.n_actions)))
-            u_onehot.append(np.zeros((self.args.n_agents, self.n_actions)))
-            avail_u.append(np.zeros((self.args.n_agents, self.n_actions)))
-            avail_u_next.append(np.zeros((self.args.n_agents, self.n_actions)))
+            u_onehot.append(np.zeros((self.env.args.n_agents, self.env.n_actions)))
+            avail_u.append(np.zeros((self.env.args.n_agents, self.env.n_actions)))
+            avail_u_next.append(np.zeros((self.env.args.n_agents, self.env.n_actions)))
             padded.append([1.])
             terminate.append([1.])
 
