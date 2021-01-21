@@ -87,7 +87,7 @@ def get_mixer_args(args):
     # epsilon greedy
     args.epsilon = 1
     args.min_epsilon = 0.05
-    anneal_steps = 500_000
+    anneal_steps = 25 * 20000
     args.anneal_epsilon = (args.epsilon - args.min_epsilon) / anneal_steps
     args.epsilon_anneal_scale = 'step'
 
