@@ -8,10 +8,10 @@ import time
 
 
 class Runner:
-    def __init__(self, env, args):
+    def __init__(self, env, args, timestamp):
         # TODO: refactor references to args to be to self.env.args, that way we can
         #  change just env.args and the changes will propagate nicely.
-        self.timestamp = int(time.time())
+        self.timestamp = timestamp
         self.env = env
         self.env.runner = self
 
@@ -37,9 +37,8 @@ class Runner:
         train_steps = 0
         # print('Run {} start'.format(num))
         for epoch in range(self.args.n_epoch):
-            if epoch % 100 == 0:
-                print('Run {}, train epoch {}'.format(num, epoch))
             if epoch % self.args.evaluate_cycle == 0:
+                print('{} Run {:4} eval epoch  {:12}'.format(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
                 win_rate, episode_reward = self.evaluate()
                 # print('win_rate is ', win_rate)
                 self.win_rates.append(self.rolloutWorker.epsilon)
@@ -48,6 +47,8 @@ class Runner:
 
             episodes = []
             # 收集self.args.n_episodes个episodes
+            if epoch % self.args.evaluate_cycle == 0:
+                print('{} Run {:4} train epoch {:12}'.format( time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
             for episode_idx in range(self.args.n_episodes):
                 episode, _, _ = self.rolloutWorker.generate_episode(episode_idx)
                 episodes.append(episode)
