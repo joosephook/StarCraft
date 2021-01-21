@@ -1,4 +1,6 @@
+import time
 from argparse import Namespace
+from itertools import chain
 
 from multiagent.core import Landmark
 
@@ -122,77 +124,20 @@ def create_env(scenario_name, scenario_parameters={}):
     return env
 
 from common.replay_buffer import ReplayBuffer
+
 class Curriculum:
-    def __init__(self, envs, episode_limits):
-        self.envs = envs
-        self.env_idx = 0
-        self.env = self.envs[self.env_idx]
-        self.episode_limits = episode_limits
-        self.episode_limit_idx = 0
-        self.runner = None
-        self.env.args.n_agents_max = scenario_parameter_list[-1]['num_agents']
-        self._train = True
+    def __init__(self, train_envs, eval_env, target_env, train_env_duration=None, args=None):
+        assert(len(train_envs)), "Nowhere to train"
 
-    def __getattr__(self, item):
-        if item == 'reset':
-            if self._train and len(self.episode_limits) and self.env.num_episodes >= self.episode_limits[self.episode_limit_idx]:
-                print(f'Old env @ {self.env.num_episodes} episodes w/ {self.env.args.n_agents} agents')
-                self.episode_limit_idx += 1
-                self.episode_limits.pop(0)
-                self.env_idx += 1
-                self.env = self.envs[self.env_idx]
-                print(f'Now have {self.env.args.n_agents} agents')
+        args.n_agents_max = target_env.n_agents
 
-        return getattr(getattr(self, 'env'), item)
+        target_obs_structure = target_env.get_obs_agent(0, structure=True)
+        target_state_structure = target_env.get_state(structure=True)
 
-    def train(self):
-        self.env = envs[self.env_idx]
-        self._train = True
-
-    def eval(self):
-        self.env = self.envs[-1]
-        self._train = False
-
-
-if __name__ == '__main__':
-    import torch
-    for i in [0]:
-        seed = 2**32-i-1
-        np.random.seed(seed)
-        torch.random.manual_seed(seed)
-
-        args = get_common_args()
-        if args.alg.find('coma') > -1:
-            args = get_coma_args(args)
-        elif args.alg.find('central_v') > -1:
-            args = get_centralv_args(args)
-        elif args.alg.find('reinforce') > -1:
-            args = get_reinforce_args(args)
-        else:
-            args = get_mixer_args(args)
-        if args.alg.find('commnet') > -1:
-            args = get_commnet_args(args)
-        if args.alg.find('g2anet') > -1:
-            args = get_g2anet_args(args)
-        # env = MyEnv(map_name=args.map,
-        envs = []
-        scenario_parameter_list = [
-            dict(num_agents=1, num_landmarks=1),
-            dict(num_agents=10, num_landmarks=10),
-            dict(num_agents=10, num_landmarks=10),
-        ]
-        args.n_agents_max = scenario_parameter_list[-1]['num_agents']
-
-        for params in scenario_parameter_list:
-            env = create_env('simple_spread', scenario_parameters=params)
-            envs.append(env)
-
-        target_obs_structure   = envs[-1].get_obs_agent(0, structure=True)
-        target_state_structure = envs[-1].get_state(structure=True)
-
-        for env in envs:
+        for env in chain(train_envs, [eval_env]):
             env.translate_observation = target_obs_structure
-            env.translate_state       = target_state_structure
+            env.translate_state = target_state_structure
+            # make copy of namespace
             arg = Namespace(**dict(**vars(args)))
             env_info = env.get_env_info()
             arg.n_actions = env_info["n_actions"]
@@ -201,9 +146,6 @@ if __name__ == '__main__':
             arg.obs_shape = env_info["obs_shape"]
             arg.episode_limit = env_info["episode_limit"]
             env.args = arg
-            env.buffer = ReplayBuffer(arg)
-
-        env = Curriculum(envs, episode_limits=[5000*i])
 
         env_info = env.get_env_info()
         args.n_actions = env_info["n_actions"]
@@ -211,7 +153,75 @@ if __name__ == '__main__':
         args.state_shape = env_info["state_shape"]
         args.obs_shape = env_info["obs_shape"]
         args.episode_limit = env_info["episode_limit"]
-        runner = Runner(env, args)
+
+        for env in train_envs:
+            env.buffer = ReplayBuffer(env.args)
+
+        assert len(train_envs) == len(train_env_duration)
+        self.train_envs = list(zip(train_envs, train_env_duration))
+        self.eval_env = eval_env
+        self.runner = None
+        self._train = True
+        self.next_env()
+
+    def __getattr__(self, item):
+        if item == 'reset':
+            if self._train and self.episode_limit and self.env.num_episodes >= self.episode_limit:
+                print(f'Old env @ {self.env.num_episodes} episodes w/ {self.env.args.n_agents} agents')
+                self.next_env()
+                self.env = self.train_env
+                print(f'Now have {self.env.args.n_agents} agents')
+
+        return getattr(getattr(self, 'env'), item)
+
+    def next_env(self):
+        self.train_env, self.episode_limit = self.train_envs.pop(0)
+
+    def train(self):
+        self.env = self.train_env
+        self._train = True
+
+    def eval(self):
+        self.env = self.eval_env
+        self._train = False
+
+
+if __name__ == '__main__':
+    import torch
+
+    args = get_common_args()
+    if args.alg.find('coma') > -1:
+        args = get_coma_args(args)
+    elif args.alg.find('central_v') > -1:
+        args = get_centralv_args(args)
+    elif args.alg.find('reinforce') > -1:
+        args = get_reinforce_args(args)
+    else:
+        args = get_mixer_args(args)
+    if args.alg.find('commnet') > -1:
+        args = get_commnet_args(args)
+    if args.alg.find('g2anet') > -1:
+        args = get_g2anet_args(args)
+    timestamp = f'{int(time.time())}_test'
+
+    for i in [0]:
+        seed = 2**32-i-1
+        np.random.seed(seed)
+        torch.random.manual_seed(seed)
+
+        train_envs = [
+            create_env('simple_spread', scenario_parameters=dict(num_agents=3, num_landmarks=3)),
+            create_env('simple_spread', scenario_parameters=dict(num_agents=4, num_landmarks=4)),
+            create_env('simple_spread', scenario_parameters=dict(num_agents=5, num_landmarks=5))
+        ]
+        eval_env = create_env('simple_spread', scenario_parameters=dict(num_agents=3, num_landmarks=3))
+        target_env = create_env('simple_spread', scenario_parameters=dict(num_agents=5, num_landmarks=5))
+
+
+        train_env_duration = [200, 300, None]
+        env = Curriculum(train_envs, eval_env, target_env, args=args, train_env_duration=train_env_duration)
+
+        runner = Runner(env, args, timestamp)
         if args.learn:
             runner.run(i)
         else:
