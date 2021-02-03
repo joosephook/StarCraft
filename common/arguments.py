@@ -28,8 +28,10 @@ def get_common_args():
     parser.add_argument('--result_dir', type=str, default='./result', help='result directory of the policy')
     parser.add_argument('--load_model', type=bool, default=False, help='whether to load the pretrained model')
     parser.add_argument('--learn', type=bool, default=True, help='whether to train the model')
-    parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
+    parser.add_argument('--cuda', type=bool, default=True, help='whether to use the GPU')
     parser.add_argument('--n_epoch', type=int, default=20000, help='number of epochs')
+    parser.add_argument('--rnn_weights', type=str, help='rnn weights')
+    parser.add_argument('--qmix_weights', type=str, help='qmix weights')
     args = parser.parse_args()
     return args
 
@@ -82,17 +84,17 @@ def get_mixer_args(args):
     args.two_hyper_layers = False
     args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
-    args.lr = 1e-7
+    args.lr = 1e-5
 
     # epsilon greedy
     args.epsilon = 1
     args.min_epsilon = 0.05
-    anneal_steps = 25 * 20000
+    anneal_steps = 25 * 100_000
     args.anneal_epsilon = (args.epsilon - args.min_epsilon) / anneal_steps
     args.epsilon_anneal_scale = 'step'
 
     # the number of the epoch to train the agent
-    args.n_epoch = 100000
+    args.n_epoch = 100_000
 
     # the number of the episodes in one epoch
     args.n_episodes = 1
@@ -105,13 +107,13 @@ def get_mixer_args(args):
 
     # experience replay
     args.batch_size = 32
-    args.buffer_size = int(5e3)
+    args.buffer_size = int(5e4)
 
     # how often to save the model
     args.save_cycle = 5000
 
     # how often to update the target_net
-    args.target_update_cycle = 200
+    args.target_update_cycle = 100
 
     # QTRAN lambda
     args.lambda_opt = 1

@@ -39,14 +39,12 @@ class QMIX:
             self.target_qmix_net.cuda()
         self.model_dir = args.model_dir + '/' + args.alg + '/' + args.map
         # 如果存在模型则加载模型
-        if self.args.load_model:
-            if os.path.exists(self.model_dir + '/rnn_net_params.pkl'):
-                path_rnn = self.model_dir + '/rnn_net_params.pkl'
-                path_qmix = self.model_dir + '/qmix_net_params.pkl'
+        if self.args.rnn_weights and self.args.qmix_weights:
+            if os.path.exists(self.args.rnn_weights) and os.path.exists(self.args.qmix_weights):
                 map_location = 'cuda:0' if self.args.cuda else 'cpu'
-                self.eval_rnn.load_state_dict(torch.load(path_rnn, map_location=map_location))
-                self.eval_qmix_net.load_state_dict(torch.load(path_qmix, map_location=map_location))
-                print('Successfully load the model: {} and {}'.format(path_rnn, path_qmix))
+                self.eval_rnn.load_state_dict(torch.load(self.args.rnn_weights, map_location=map_location))
+                self.eval_qmix_net.load_state_dict(torch.load(self.args.qmix_weights, map_location=map_location))
+                print('Successfully load the model: {} and {}'.format(self.args.rnn_weights, self.args.qmix_weights))
             else:
                 raise Exception("No model!")
 
