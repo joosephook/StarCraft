@@ -20,12 +20,12 @@ class RolloutWorker:
         self.min_epsilon = args.min_epsilon
         print('Init RolloutWorker')
 
-    def generate_episode(self, episode_num=None, evaluate=False):
+    def generate_episode(self, episode_num=None, evaluate=False, render=False):
         if self.args.replay_dir != '' and evaluate and episode_num == 0:  # prepare for save replay of evaluation
             self.env.close()
         o, u, r, s, avail_u, u_onehot, terminate, padded = [], [], [], [], [], [], [], []
 
-        self.env.reset(evaluate=evaluate)
+        self.env.reset()
         terminated = False
         win_tag = False
         step = 0
@@ -51,13 +51,17 @@ class RolloutWorker:
             maven_z = one_hot_categorical.OneHotCategorical(z_prob).sample()
             maven_z = list(maven_z.cpu())
 
+
         while not terminated and step < self.episode_limit:
-            # time.sleep(0.2)
+            if render:
+                time.sleep(0.1)
+                self.env.render()
+
             obs = self.env.get_obs()
             state = self.env.get_state()
             actions, avail_actions, actions_onehot = [], [], []
             for agent_id in range(self.env.args.n_agents):
-                avail_action = self.env.get_avail_agent_actions(agent_id)
+                avail_action = np.ones(self.env.args.n_actions)
                 if self.args.alg == 'maven':
                     action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
                                                        avail_action, epsilon, maven_z, evaluate)
@@ -94,11 +98,12 @@ class RolloutWorker:
         s_next = s[1:]
         o = o[:-1]
         s = s[:-1]
+
+        if not evaluate:
+            self.env.inc()
+
         # get avail_action for last obs，because target_q needs avail_action in training
-        avail_actions = []
-        for agent_id in range(self.env.args.n_agents):
-            avail_action = self.env.get_avail_agent_actions(agent_id)
-            avail_actions.append(avail_action)
+        avail_actions = np.ones(self.env.args.n_actions)
         avail_u.append(avail_actions)
         avail_u_next = avail_u[1:]#available action in next step
         avail_u = avail_u[:-1]
@@ -117,11 +122,13 @@ class RolloutWorker:
             # u_onehot.append(np.zeros((self.n_agents, self.n_actions)))
             # avail_u.append(np.zeros((self.n_agents, self.n_actions)))
             # avail_u_next.append(np.zeros((self.n_agents, self.n_actions)))
-            u_onehot.append(np.zeros((self.env.args.n_agents, self.env.n_actions)))
-            avail_u.append(np.zeros((self.env.args.n_agents, self.env.n_actions)))
-            avail_u_next.append(np.zeros((self.env.args.n_agents, self.env.n_actions)))
+            u_onehot.append(np.zeros((self.env.args.n_agents, self.env.args.n_actions)))
+            avail_u.append(np.zeros((self.env.args.n_agents, self.env.args.n_actions)))
+            avail_u_next.append(np.zeros((self.env.args.n_agents, self.env.args.n_actions)))
             padded.append([1.])
             terminate.append([1.])
+
+        terminate[-1][0] = 1.0
 
         episode = dict(o=o.copy(),
                        s=s.copy(),
@@ -138,6 +145,7 @@ class RolloutWorker:
         # add episode dim
         for key in episode.keys():
             # episode[key] = np.array([episode[key]])
+            # WARN! avail_u_next breaks this if avail_u_next changes
             episode[key] = np.expand_dims(np.array(episode[key]), axis=0)
         assert episode['avail_u_next'].shape == episode['avail_u'].shape
         if not evaluate:
