@@ -1,15 +1,13 @@
 import time
 from argparse import Namespace
 from itertools import chain
+from ma_gym.envs.multiagent import MultiAgentBase, TranslatorMixin
 
-from multiagent.core import Landmark
 
 from runner import Runner
 from common.arguments import get_common_args, get_coma_args, get_mixer_args, get_centralv_args, get_reinforce_args, get_commnet_args, get_g2anet_args
 import numpy as np
 
-from multiagent.environment import MultiAgentEnv
-from multiagent import scenarios
 
 def calculate_observation_structure(scenario_name, environment):
     # p_pos + p_vel
@@ -106,22 +104,22 @@ def create_env(scenario_name, scenario_parameters={}):
     :param scenario_parameters:  dictionary (e.g. {'num_agents': 2, 'num_adversaries': 1}
     :return: a MultiAgentEnv representing the scenario created with the specified parameters
     """
-    scenario = scenarios.load(scenario_name + ".py").Scenario()
-    world = scenario.make_world(**scenario_parameters)
-    env = MultiAgentEnv(world,
-                        reset_callback=scenario.reset_world,
-                        reward_callback=scenario.reward,
-                        observation_callback=scenario.observation,
-                        discrete_action_input=True,
-                        discrete_action_space=True,
-                        episode_limit=25)
-    env.observation_structures = calculate_observation_structure(scenario_name, env)
-    env.shared_reward = True
-
-    for a in env.agents:
-        a.adversary = getattr(a, 'adversary', False)
-
-    return env
+    # scenario = scenarios.load(scenario_name + ".py").Scenario()
+    # world = scenario.make_world(**scenario_parameters)
+    # env = MultiAgentEnv(world,
+    #                     reset_callback=scenario.reset_world,
+    #                     reward_callback=scenario.reward,
+    #                     observation_callback=scenario.observation,
+    #                     discrete_action_input=True,
+    #                     discrete_action_space=True,
+    #                     episode_limit=25)
+    # env.observation_structures = calculate_observation_structure(scenario_name, env)
+    # env.shared_reward = True
+    #
+    # for a in env.agents:
+    #     a.adversary = getattr(a, 'adversary', False)
+    #
+    # return env
 
 from common.replay_buffer import ReplayBuffer
 
@@ -131,12 +129,16 @@ class Curriculum:
 
         args.n_agents_max = target_env.n_agents
 
-        target_obs_structure = target_env.get_obs_agent(0, structure=True)
-        target_state_structure = target_env.get_state(structure=True)
+        # target_obs_structure = target_env.get_agent_sections(0)
+        # target_state_structure = target_env.get_state(structure=True)
 
         for env in chain(train_envs, [eval_env]):
-            env.translate_observation = target_obs_structure
-            env.translate_state = target_state_structure
+            env.init()
+            translator = TranslatorMixin(from_env=env, to_env=target_env)
+            env.translator = translator
+            env.episode_limit = 25
+            # env.translate_observation = target_obs_structure
+            # env.translate_state = target_state_structure
             # make copy of namespace
             arg = Namespace(**dict(**vars(args)))
             env_info = env.get_env_info()
@@ -144,15 +146,16 @@ class Curriculum:
             arg.n_agents = env_info["n_agents"]
             arg.state_shape = env_info["state_shape"]
             arg.obs_shape = env_info["obs_shape"]
-            arg.episode_limit = env_info["episode_limit"]
+            arg.episode_limit = env._max_steps
             env.args = arg
+
 
         env_info = env.get_env_info()
         args.n_actions = env_info["n_actions"]
         args.n_agents = env_info["n_agents"]
         args.state_shape = env_info["state_shape"]
         args.obs_shape = env_info["obs_shape"]
-        args.episode_limit = env_info["episode_limit"]
+        args.episode_limit = env._max_steps
 
         for env in train_envs:
             env.buffer = ReplayBuffer(env.args)
@@ -188,6 +191,8 @@ class Curriculum:
 
 if __name__ == '__main__':
     import torch
+    import gym
+    import ma_gym
 
     args = get_common_args()
     if args.alg.find('coma') > -1:
@@ -205,20 +210,21 @@ if __name__ == '__main__':
     timestamp = f'{int(time.time())}_test'
 
     for i in [0]:
-        seed = 2**32-i-1
+        seed = 2**32-1-1
         np.random.seed(seed)
         torch.random.manual_seed(seed)
 
+        env = gym.make('PredatorPrey5x5-v0')
+
+
         train_envs = [
-            create_env('simple_spread', scenario_parameters=dict(num_agents=3, num_landmarks=3)),
-            create_env('simple_spread', scenario_parameters=dict(num_agents=4, num_landmarks=4)),
-            create_env('simple_spread', scenario_parameters=dict(num_agents=5, num_landmarks=5))
+            env
         ]
-        eval_env = create_env('simple_spread', scenario_parameters=dict(num_agents=3, num_landmarks=3))
-        target_env = create_env('simple_spread', scenario_parameters=dict(num_agents=5, num_landmarks=5))
+        eval_env = env
+        target_env = env
 
+        train_env_duration = [None]
 
-        train_env_duration = [200, 300, None]
         env = Curriculum(train_envs, eval_env, target_env, args=args, train_env_duration=train_env_duration)
 
         runner = Runner(env, args, timestamp)
