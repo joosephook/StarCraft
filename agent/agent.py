@@ -44,6 +44,7 @@ class Agents:
     def choose_action(self, obs, last_action, agent_num, avail_actions, epsilon, maven_z=None, evaluate=False):
         inputs = obs.copy()
         avail_actions_ind = np.nonzero(avail_actions)[0]  # index of actions which can be choose
+        avail_actions_ind = avail_actions
 
         # transform agent_num to onehot vector
         agent_id = np.zeros(self.n_agents)
