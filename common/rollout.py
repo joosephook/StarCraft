@@ -38,9 +38,9 @@ class RolloutWorker:
         # epsilon
         epsilon = 0 if evaluate else self.epsilon
 
-        if self.args.epsilon_anneal_scale == 'episode' and evaluate:
+        if self.args.epsilon_anneal_scale == 'episode' and not evaluate:
             epsilon = epsilon - self.anneal_epsilon if epsilon > self.min_epsilon else epsilon
-        if self.args.epsilon_anneal_scale == 'epoch' and evaluate:
+        if self.args.epsilon_anneal_scale == 'epoch' and not evaluate:
             if episode_num == 0:
                 epsilon = epsilon - self.anneal_epsilon if epsilon > self.min_epsilon else epsilon
 
@@ -93,7 +93,7 @@ class RolloutWorker:
             episode_reward += reward
             step += 1
 
-            if self.args.epsilon_anneal_scale == 'step' and evaluate:
+            if self.args.epsilon_anneal_scale == 'step' and not evaluate:
                 epsilon = epsilon - self.anneal_epsilon if epsilon > self.min_epsilon else epsilon
 
         # last obs

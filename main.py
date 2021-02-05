@@ -221,10 +221,11 @@ if __name__ == '__main__':
 
 
         train_envs = [
-            gym.make('PredatorPrey5x5-v0', grid_shape=(3,3), penalty=0),
+            gym.make('PredatorPrey5x5-v0', penalty=0, step_cost=0, time_proportional=True),
         ]
-        eval_env = gym.make('PredatorPrey5x5-v0', grid_shape=(3,3))
-        target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(3,3))
+
+        eval_env = gym.make('PredatorPrey5x5-v0', grid_shape=(7,7))
+        target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(7,7))
 
         train_env_duration = [None]
 
