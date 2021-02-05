@@ -133,7 +133,6 @@ class Curriculum:
         # target_state_structure = target_env.get_state(structure=True)
 
         for env in chain(train_envs, [eval_env]):
-            env.init()
             translator = TranslatorMixin(from_env=env, to_env=target_env)
             env.translator = translator
             env.episode_limit = 25
@@ -210,7 +209,7 @@ if __name__ == '__main__':
     timestamp = f'{int(time.time())}_test'
 
     for i in [0]:
-        seed = 2**32-1-1
+        seed = 2**32-0-1
         np.random.seed(seed)
         torch.random.manual_seed(seed)
 
@@ -220,8 +219,10 @@ if __name__ == '__main__':
         train_envs = [
             env
         ]
-        eval_env = env
-        target_env = env
+        eval_env = gym.make('PredatorPrey5x5-v0')
+
+
+        target_env = gym.make('PredatorPrey5x5-v0')
 
         train_env_duration = [None]
 

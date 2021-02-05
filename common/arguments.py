@@ -20,7 +20,7 @@ def get_common_args():
     # coma+g2anet, central_v+g2anet, reinforce+g2anet, maven
     parser.add_argument('--alg', type=str, default='qmix', help='the algorithm to train the agent')
     parser.add_argument('--last_action', type=bool, default=True, help='whether to use the last action to choose action')
-    parser.add_argument('--reuse_network', type=bool, default=False, help='whether to use one network for all agents')
+    parser.add_argument('--reuse_network', type=bool, default=True, help='whether to use one network for all agents')
     parser.add_argument('--gamma', type=float, default=0.99, help='discount factor')
     parser.add_argument('--optimizer', type=str, default="RMS", help='optimizer')
     parser.add_argument('--evaluate_epoch', type=int, default=20, help='number of the epoch to evaluate the agent')
@@ -28,7 +28,7 @@ def get_common_args():
     parser.add_argument('--result_dir', type=str, default='./result', help='result directory of the policy')
     parser.add_argument('--load_model', type=bool, default=False, help='whether to load the pretrained model')
     parser.add_argument('--learn', type=bool, default=True, help='whether to train the model')
-    parser.add_argument('--cuda', type=bool, default=False, help='whether to use the GPU')
+    parser.add_argument('--cuda', type=bool, default=True, help='whether to use the GPU')
     parser.add_argument('--n_epoch', type=int, default=20000, help='number of epochs')
     parser.add_argument('--rnn_weights', type=str, help='rnn weights')
     parser.add_argument('--qmix_weights', type=str, help='qmix weights')
@@ -87,14 +87,14 @@ def get_mixer_args(args):
     args.lr = 5e-4
 
     # epsilon greedy
-    args.epsilon = 1
+    args.epsilon = 1.0
     args.min_epsilon = 0.05
     anneal_steps = 50_000
     args.anneal_epsilon = (args.epsilon - args.min_epsilon) / anneal_steps
     args.epsilon_anneal_scale = 'step'
 
     # the number of the epoch to train the agent
-    args.n_epoch = 20_000
+    args.n_epoch = 60_000
 
     # the number of the episodes in one epoch
     args.n_episodes = 1
@@ -107,7 +107,7 @@ def get_mixer_args(args):
 
     # experience replay
     args.batch_size = 32
-    args.buffer_size = int(5e4)
+    args.buffer_size = int(5e3)
 
     # how often to save the model
     args.save_cycle = 5000

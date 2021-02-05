@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 import torch
 from torch.distributions import one_hot_categorical
@@ -103,7 +105,7 @@ class RolloutWorker:
             self.env.inc()
 
         # get avail_action for last obs，because target_q needs avail_action in training
-        avail_actions = np.ones(self.env.args.n_actions)
+        avail_actions = np.ones((self.env.args.n_agents, self.env.args.n_actions))
         avail_u.append(avail_actions)
         avail_u_next = avail_u[1:]#available action in next step
         avail_u = avail_u[:-1]
@@ -148,6 +150,7 @@ class RolloutWorker:
             # WARN! avail_u_next breaks this if avail_u_next changes
             episode[key] = np.expand_dims(np.array(episode[key]), axis=0)
         assert episode['avail_u_next'].shape == episode['avail_u'].shape
+
         if not evaluate:
             self.epsilon = epsilon
         if self.args.alg == 'maven':
