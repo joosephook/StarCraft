@@ -37,9 +37,10 @@ class RolloutWorker:
 
         # epsilon
         epsilon = 0 if evaluate else self.epsilon
-        if self.args.epsilon_anneal_scale == 'episode':
+
+        if self.args.epsilon_anneal_scale == 'episode' and evaluate:
             epsilon = epsilon - self.anneal_epsilon if epsilon > self.min_epsilon else epsilon
-        if self.args.epsilon_anneal_scale == 'epoch':
+        if self.args.epsilon_anneal_scale == 'epoch' and evaluate:
             if episode_num == 0:
                 epsilon = epsilon - self.anneal_epsilon if epsilon > self.min_epsilon else epsilon
 
@@ -91,8 +92,10 @@ class RolloutWorker:
             padded.append([0.])
             episode_reward += reward
             step += 1
-            if self.args.epsilon_anneal_scale == 'step':
+
+            if self.args.epsilon_anneal_scale == 'step' and evaluate:
                 epsilon = epsilon - self.anneal_epsilon if epsilon > self.min_epsilon else epsilon
+
         # last obs
         o.append(obs)
         s.append(state)
@@ -129,8 +132,6 @@ class RolloutWorker:
             avail_u_next.append(np.zeros((self.env.args.n_agents, self.env.args.n_actions)))
             padded.append([1.])
             terminate.append([1.])
-
-        terminate[-1][0] = 1.0
 
         episode = dict(o=o.copy(),
                        s=s.copy(),
@@ -280,7 +281,6 @@ class CommRolloutWorker:
             episode[key] = np.array([episode[key]])
         if not evaluate:
             self.epsilon = epsilon
-            # print('Epsilon is ', self.epsilon)
         if evaluate and episode_num == self.args.evaluate_epoch - 1 and self.args.replay_dir != '':
             self.env.save_replay()
             self.env.close()

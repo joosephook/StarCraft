@@ -27,6 +27,7 @@ class Runner:
         self.args = args
         self.win_rates = []
         self.episode_rewards = []
+        self.train_rewards = []
 
         # 用来保存plt和pkl
         self.save_path = self.args.result_dir + '/' + args.alg + '/' + args.map
@@ -36,8 +37,11 @@ class Runner:
     def run(self, num):
         train_steps = 0
         # print('Run {} start'.format(num))
+        cumulative_train_reward = 0
         for epoch in range(self.args.n_epoch):
             if epoch % self.args.evaluate_cycle == 0:
+                self.train_rewards.append(cumulative_train_reward / self.args.evaluate_cycle)
+                cumulative_train_reward = 0
                 print('{} Run {:4} eval epoch  {:12}'.format(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
                 win_rate, episode_reward = self.evaluate()
                 # print('win_rate is ', win_rate)
@@ -49,10 +53,13 @@ class Runner:
             # 收集self.args.n_episodes个episodes
             if epoch % self.args.evaluate_cycle == 0:
                 print('{} Run {:4} train epoch {:12}'.format( time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
+
             for episode_idx in range(self.args.n_episodes):
-                episode, _, _ = self.rolloutWorker.generate_episode(episode_idx)
+                episode, ep_reward, _ = self.rolloutWorker.generate_episode(episode_idx)
+                cumulative_train_reward += ep_reward
                 episodes.append(episode)
-                # print(_)
+
+
             # episode的每一项都是一个(1, episode_len, n_agents, 具体维度)四维数组，下面要把所有episode的的obs拼在一起
             episode_batch = episodes[0]
             episodes.pop(0)
@@ -72,12 +79,12 @@ class Runner:
                     train_steps += 1
         self.plt(num)
 
-    def evaluate(self):
+    def evaluate(self, render=False):
         win_number = 0
         episode_rewards = 0
         self.env.eval()
         for epoch in range(self.args.evaluate_epoch):
-            _, episode_reward, win_tag = self.rolloutWorker.generate_episode(epoch, evaluate=True)
+            _, episode_reward, win_tag = self.rolloutWorker.generate_episode(epoch, evaluate=True, render=render)
             episode_rewards += episode_reward
             if win_tag:
                 win_number += 1
@@ -88,22 +95,28 @@ class Runner:
     def plt(self, num):
         # num = 'test'
         fig = plt.figure()
+        fig.set_size_inches(15, 10)
         plt.axis([0, self.args.n_epoch, 0, 100])
         plt.cla()
-        plt.subplot(2, 1, 1)
+        plt.subplot(3, 1, 1)
         plt.plot(range(len(self.win_rates)), self.win_rates)
-        plt.xlabel('epoch*{}'.format(self.args.evaluate_cycle))
-        plt.ylabel('epsilon')
+        plt.ylabel('eps')
 
-        plt.subplot(2, 1, 2)
+        plt.subplot(3, 1, 2)
         plt.plot(range(len(self.episode_rewards)), self.episode_rewards)
-        plt.xlabel('epoch*{}'.format(self.args.evaluate_cycle))
-        plt.ylabel('episode_rewards')
-        plt.tight_layout()
+        plt.ylabel('eval cumul. R')
 
+
+        plt.subplot(3, 1, 3)
+        plt.plot(range(len(self.train_rewards)), self.train_rewards)
+        plt.xlabel('epoch*{}'.format(self.args.evaluate_cycle))
+        plt.ylabel('train cumul. R')
+
+        plt.tight_layout()
         plt.savefig(self.save_path + '/plt_{}_{}.png'.format(num, self.timestamp), format='png')
         np.save(self.save_path + '/win_rates_{}_{}'.format(num, self.timestamp), self.win_rates)
         np.save(self.save_path + '/episode_rewards_{}_{}'.format(num, self.timestamp), self.episode_rewards)
+        np.save(self.save_path + '/train_rewards_{}_{}'.format(num, self.timestamp), self.train_rewards)
         plt.close(fig)
 
 

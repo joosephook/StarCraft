@@ -133,7 +133,9 @@ class Curriculum:
         # target_state_structure = target_env.get_state(structure=True)
 
         for env in chain(train_envs, [eval_env]):
-            translator = TranslatorMixin(from_env=env, to_env=target_env)
+            translator = TranslatorMixin(env.observations[0].sections, target_env.observations[0].sections,
+                                         env.state.sections,
+                                         target_env.state.sections)
             env.translator = translator
             env.episode_limit = 25
             # env.translate_observation = target_obs_structure
@@ -168,10 +170,12 @@ class Curriculum:
 
     def __getattr__(self, item):
         if item == 'reset':
-            if self._train and self.episode_limit and self.env.num_episodes >= self.episode_limit:
-                print(f'Old env @ {self.env.num_episodes} episodes w/ {self.env.args.n_agents} agents')
+            if self._train and self.episode_limit and self.env.episode_count >= self.episode_limit:
+                print(f'Old env @ {self.env.episode_count} episodes w/ {self.env.args.n_agents} agents')
+                print(self.runner.rolloutWorker.epsilon)
                 self.next_env()
                 self.env = self.train_env
+                self.runner.rolloutWorker.epsilon = 1.0
                 print(f'Now have {self.env.args.n_agents} agents')
 
         return getattr(getattr(self, 'env'), item)
@@ -217,12 +221,10 @@ if __name__ == '__main__':
 
 
         train_envs = [
-            env
+            gym.make('PredatorPrey5x5-v0', grid_shape=(3,3), penalty=0),
         ]
-        eval_env = gym.make('PredatorPrey5x5-v0')
-
-
-        target_env = gym.make('PredatorPrey5x5-v0')
+        eval_env = gym.make('PredatorPrey5x5-v0', grid_shape=(3,3))
+        target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(3,3))
 
         train_env_duration = [None]
 
