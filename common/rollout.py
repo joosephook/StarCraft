@@ -57,7 +57,7 @@ class RolloutWorker:
 
         while not terminated and step < self.episode_limit:
             if render:
-                time.sleep(0.1)
+                time.sleep(0.03)
                 self.env.render()
 
             obs = self.env.get_obs()
@@ -80,7 +80,8 @@ class RolloutWorker:
                 last_action[agent_id] = action_onehot
 
             reward, terminated, info = self.env.step(actions)
-            win_tag = True if terminated and 'battle_won' in info and info['battle_won'] else False
+            # win_tag = True if terminated and 'battle_won' in info and info['battle_won'] else False
+            win_tag = True if terminated and not all(info['prey_alive']) else False
             o.append(obs)
             s.append(state)
             # u.append(np.reshape(actions, [self.n_agents, 1]))
@@ -120,7 +121,7 @@ class RolloutWorker:
             o.append(np.zeros((self.env.args.n_agents, self.obs_shape)))
             u.append(np.zeros([self.env.args.n_agents, 1]))
             s.append(np.zeros(self.state_shape))
-            r.append([0.])
+            r.append([0]) # whatever the final terminating reward was
             # o_next.append(np.zeros((self.n_agents, self.obs_shape)))
             o_next.append(np.zeros((self.env.args.n_agents, self.obs_shape)))
             s_next.append(np.zeros(self.state_shape))

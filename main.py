@@ -137,11 +137,11 @@ class Curriculum:
                                          env.state.sections,
                                          target_env.state.sections)
             env.translator = translator
-            env.episode_limit = 25
             # env.translate_observation = target_obs_structure
             # env.translate_state = target_state_structure
             # make copy of namespace
             arg = Namespace(**dict(**vars(args)))
+            env.episode_limit = env._max_steps
             env_info = env.get_env_info()
             arg.n_actions = env_info["n_actions"]
             arg.n_agents = env_info["n_agents"]
@@ -221,13 +221,14 @@ if __name__ == '__main__':
 
 
         train_envs = [
-            gym.make('PredatorPrey5x5-v0', penalty=0, step_cost=0, time_proportional=True),
+            gym.make('PredatorPrey5x5-v0', grid_shape=(7,7), step_cost=0, penalty=0, prey_capture_reward=10, time_proportional=True),
+            gym.make('PredatorPrey5x5-v0', grid_shape=(7,7), step_cost=0, penalty=0, prey_capture_reward=10, time_proportional=True, n_agents=32)
         ]
 
-        eval_env = gym.make('PredatorPrey5x5-v0', grid_shape=(7,7))
-        target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(7,7))
+        eval_env = gym.make('PredatorPrey5x5-v0', grid_shape=(7, 7), step_cost=0, penalty=0, prey_capture_reward=10, time_proportional=True, n_agents=32)
+        target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(7, 7), n_agents=32)
 
-        train_env_duration = [None]
+        train_env_duration = [10000, None]
 
         env = Curriculum(train_envs, eval_env, target_env, args=args, train_env_duration=train_env_duration)
 

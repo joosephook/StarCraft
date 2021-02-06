@@ -28,6 +28,7 @@ class Runner:
         self.win_rates = []
         self.episode_rewards = []
         self.train_rewards = []
+        self.train_win_rates = []
 
         # 用来保存plt和pkl
         self.save_path = self.args.result_dir + '/' + args.alg + '/' + args.map
@@ -38,14 +39,19 @@ class Runner:
         train_steps = 0
         # print('Run {} start'.format(num))
         cumulative_train_reward = 0
+        train_win_number = 0
         for epoch in range(self.args.n_epoch):
             if epoch % self.args.evaluate_cycle == 0:
                 self.train_rewards.append(cumulative_train_reward / self.args.evaluate_cycle)
+                self.train_win_rates.append(train_win_number / self.args.evaluate_cycle)
                 cumulative_train_reward = 0
+                train_win_number = 0
+
                 print('{} Run {:4} eval epoch  {:12}'.format(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
+
                 win_rate, episode_reward = self.evaluate()
                 # print('win_rate is ', win_rate)
-                self.win_rates.append(self.rolloutWorker.epsilon)
+                self.win_rates.append(win_rate)
                 self.episode_rewards.append(episode_reward)
                 self.plt(num)
 
@@ -55,8 +61,9 @@ class Runner:
                 print('{} Run {:4} train epoch {:12}'.format( time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
 
             for episode_idx in range(self.args.n_episodes):
-                episode, ep_reward, _ = self.rolloutWorker.generate_episode(episode_idx)
+                episode, ep_reward, win_tag = self.rolloutWorker.generate_episode(episode_idx)
                 cumulative_train_reward += ep_reward
+                train_win_number += int(win_tag)
                 episodes.append(episode)
 
 
@@ -96,18 +103,23 @@ class Runner:
         # num = 'test'
         fig = plt.figure()
         fig.set_size_inches(15, 10)
-        plt.axis([0, self.args.n_epoch, 0, 100])
         plt.cla()
-        plt.subplot(3, 1, 1)
-        plt.plot(range(len(self.win_rates)), self.win_rates)
-        plt.ylabel('eps')
 
-        plt.subplot(3, 1, 2)
+        plt.axis([0, self.args.n_epoch, 0, 100])
+        plt.subplot(4, 1, 1)
+        plt.plot(range(len(self.win_rates)), self.win_rates)
+        plt.ylabel('eval win_rate')
+
+        plt.subplot(4, 1, 2)
+        plt.plot(range(len(self.train_win_rates)), self.train_win_rates)
+        plt.ylabel('train win_rate')
+
+        plt.subplot(4, 1, 3)
         plt.plot(range(len(self.episode_rewards)), self.episode_rewards)
         plt.ylabel('eval cumul. R')
 
 
-        plt.subplot(3, 1, 3)
+        plt.subplot(4, 1, 4)
         plt.plot(range(len(self.train_rewards)), self.train_rewards)
         plt.xlabel('epoch*{}'.format(self.args.evaluate_cycle))
         plt.ylabel('train cumul. R')

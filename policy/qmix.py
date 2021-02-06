@@ -17,7 +17,7 @@ class QMIX:
         if args.last_action:
             input_shape += self.n_actions
         if args.reuse_network:
-            input_shape += self.n_agents
+            input_shape += args.n_agents_max
 
         # 神经网络
         # output is args.n_actions, independent of num. of agents
@@ -136,8 +136,8 @@ class QMIX:
             # 因为当前的obs三维的数据，每一维分别代表(episode编号，agent编号，obs维度)，直接在dim_1上添加对应的向量
             # 即可，比如给agent_0后面加(1, 0, 0, 0, 0)，表示5个agent中的0号。而agent_0的数据正好在第0行，那么需要加的
             # agent编号恰好就是一个单位矩阵，即对角线为1，其余为0
-            inputs.append(torch.eye(self.env.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
-            inputs_next.append(torch.eye(self.env.args.n_agents).unsqueeze(0).expand(episode_num, -1, -1))
+            inputs.append(torch.eye(self.env.args.n_agents_max)[:self.env.args.n_agents].unsqueeze(0).expand(episode_num, -1, -1))
+            inputs_next.append(torch.eye(self.env.args.n_agents_max)[:self.env.args.n_agents].unsqueeze(0).expand(episode_num, -1, -1))
         # 要把obs中的三个拼起来，并且要把episode_num个episode、self.args.n_agents个agent的数据拼成40条(40,96)的数据，
         # 因为这里所有agent共享一个神经网络，每条数据中带上了自己的编号，所以还是自己的数据
         inputs = torch.cat([x.reshape(episode_num * self.env.args.n_agents, -1) for x in inputs], dim=1)

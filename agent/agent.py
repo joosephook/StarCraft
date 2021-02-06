@@ -46,9 +46,7 @@ class Agents:
         avail_actions_ind = np.nonzero(avail_actions)[0]  # index of actions which can be choose
 
         # transform agent_num to onehot vector
-        agent_id = np.zeros(self.n_agents)
-        agent_id = np.zeros(self.args.n_agents) # TODO, should only take num. of agents from the same place
-        agent_id = np.zeros(self.env.args.n_agents) # TODO, should only take num. of agents from the same place
+        agent_id = np.zeros(self.env.args.n_agents_max) # TODO, should only take num. of agents from the same place
         agent_id[agent_num] = 1.
 
         if self.args.last_action:
