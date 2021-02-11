@@ -26,7 +26,7 @@ class Runner:
 
         self.args = args
         self.win_rates = []
-        self.episode_rewards = []
+        self.eval_rewards = []
         self.train_rewards = []
         self.train_win_rates = []
 
@@ -49,10 +49,10 @@ class Runner:
 
                 print('{} Run {:4} eval epoch  {:12}'.format(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
 
-                win_rate, episode_reward = self.evaluate()
+                win_rate, eval_episode_reward = self.evaluate()
                 # print('win_rate is ', win_rate)
                 self.win_rates.append(win_rate)
-                self.episode_rewards.append(episode_reward)
+                self.eval_rewards.append(eval_episode_reward)
                 self.plt(num)
 
             episodes = []
@@ -115,7 +115,7 @@ class Runner:
         plt.ylabel('train win_rate')
 
         plt.subplot(4, 1, 3)
-        plt.plot(range(len(self.episode_rewards)), self.episode_rewards)
+        plt.plot(range(len(self.eval_rewards)), self.eval_rewards)
         plt.ylabel('eval cumul. R')
 
 
@@ -125,10 +125,14 @@ class Runner:
         plt.ylabel('train cumul. R')
 
         plt.tight_layout()
-        plt.savefig(self.save_path + '/plt_{}_{}.png'.format(num, self.timestamp), format='png')
-        np.save(self.save_path + '/win_rates_{}_{}'.format(num, self.timestamp), self.win_rates)
-        np.save(self.save_path + '/episode_rewards_{}_{}'.format(num, self.timestamp), self.episode_rewards)
-        np.save(self.save_path + '/train_rewards_{}_{}'.format(num, self.timestamp), self.train_rewards)
+
+        if not os.path.isdir(f'{self.save_path}/{self.timestamp}'):
+            os.mkdir(f'{self.save_path}/{self.timestamp}')
+
+        plt.savefig(self.save_path + '/{}/{}.png'.format(self.timestamp, num), format='png')
+        np.save(self.save_path + '/{}/win_rates_{}'.format(self.timestamp, num), self.win_rates)
+        np.save(self.save_path + '/{}/eval_rewards_{}'.format(self.timestamp, num), self.eval_rewards)
+        np.save(self.save_path + '/{}/train_rewards_{}'.format(self.timestamp, num), self.train_rewards)
         plt.close(fig)
 
 

@@ -74,14 +74,14 @@ class RolloutWorker:
                 # generate onehot vector of th action
                 action_onehot = np.zeros(self.args.n_actions)
                 action_onehot[action] = 1
-                actions.append(action)
+                actions.append(action.item())
                 actions_onehot.append(action_onehot)
                 avail_actions.append(avail_action)
                 last_action[agent_id] = action_onehot
 
             reward, terminated, info = self.env.step(actions)
             # win_tag = True if terminated and 'battle_won' in info and info['battle_won'] else False
-            win_tag = True if terminated and not all(info['prey_alive']) else False
+            win_tag = terminated and info['won']
             o.append(obs)
             s.append(state)
             # u.append(np.reshape(actions, [self.n_agents, 1]))
