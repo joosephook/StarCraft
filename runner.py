@@ -129,10 +129,10 @@ class Runner:
         if not os.path.isdir(f'{self.save_path}/{self.timestamp}'):
             os.mkdir(f'{self.save_path}/{self.timestamp}')
 
-        plt.savefig(self.save_path + '/{}/{}.png'.format(self.timestamp, num), format='png')
-        np.save(self.save_path + '/{}/win_rates_{}'.format(self.timestamp, num), self.win_rates)
-        np.save(self.save_path + '/{}/eval_rewards_{}'.format(self.timestamp, num), self.eval_rewards)
-        np.save(self.save_path + '/{}/train_rewards_{}'.format(self.timestamp, num), self.train_rewards)
+        plt.savefig(self.save_path + '/{}/plot.png'.format(self.timestamp), format='png')
+        np.save(self.save_path + '/{}/win_rates'.format(self.timestamp), self.win_rates)
+        np.save(self.save_path + '/{}/eval_rewards'.format(self.timestamp), self.eval_rewards)
+        np.save(self.save_path + '/{}/train_rewards'.format(self.timestamp), self.train_rewards)
         plt.close(fig)
 
 
