@@ -89,13 +89,19 @@ class Runner:
     def evaluate(self, render=False):
         win_number = 0
         episode_rewards = 0
+        self.eval_reward_dist = np.zeros(self.args.evaluate_epoch)
+
         self.env.eval()
         for epoch in range(self.args.evaluate_epoch):
             _, episode_reward, win_tag = self.rolloutWorker.generate_episode(epoch, evaluate=True, render=render)
             episode_rewards += episode_reward
+            self.eval_reward_dist[epoch] = episode_reward
             if win_tag:
                 win_number += 1
         self.env.train()
+
+
+
         return win_number / self.args.evaluate_epoch, episode_rewards / self.args.evaluate_epoch
 
 
@@ -133,6 +139,10 @@ class Runner:
         np.save(self.save_path + '/{}/win_rates'.format(self.timestamp), self.win_rates)
         np.save(self.save_path + '/{}/eval_rewards'.format(self.timestamp), self.eval_rewards)
         np.save(self.save_path + '/{}/train_rewards'.format(self.timestamp), self.train_rewards)
+
+        with open(self.save_path + '/{}/eval_reward_distribution.dat'.format(self.timestamp), 'a') as out:
+            np.savetxt(out, self.eval_reward_dist.reshape(1, -1), fmt='%.2f')
+
         plt.close(fig)
 
 
