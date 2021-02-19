@@ -40,6 +40,7 @@ class Runner:
         train_steps = 0
 
         for epoch in range(1, self.args.n_epoch+1):
+            start = time.time()
             episodes = []
 
             for episode_idx in range(self.args.n_episodes):
@@ -64,9 +65,11 @@ class Runner:
                     train_steps += 1
 
             # evaluate
+            print(f'{epoch:8} train {time.time() - start:.1f}s per epoch')
             if epoch % self.args.evaluate_cycle == 0:
-                # print('{} Run {:4} eval epoch  {:12}'.format(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
+                start = time.time()
                 self.evaluate()
+                print(f'{epoch:8} eval {time.time() - start:.1f}s')
                 self.plt(num)
 
         self.plt(num)

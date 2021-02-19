@@ -166,19 +166,24 @@ class Curriculum:
         self.eval_env = eval_env
         self.runner = None
         self._train = True
+
+        self.episode_limit = None
+        self.env = None
         self.next_env()
+        self.train()
 
     def __getattr__(self, item):
         if item == 'reset':
-            if self._train and self.episode_limit and self.env.episode_count >= self.episode_limit:
+            if self._train and self.episode_limit is not None and self.env.episode_count >= self.episode_limit:
                 print(f'Old env @ {self.env.episode_count} episodes w/ {self.env.args.n_agents} agents')
                 print(self.runner.rolloutWorker.epsilon)
                 self.next_env()
                 self.env = self.train_env
-                self.runner.rolloutWorker.epsilon = 1.0
+                # self.runner.rolloutWorker.epsilon = 1.0
                 print(f'Now have {self.env.args.n_agents} agents')
 
-        return getattr(getattr(self, 'env'), item)
+        return getattr(self.env, item)
+        # return getattr(getattr(self, 'env'), item)
 
     def next_env(self):
         self.train_env, self.episode_limit = self.train_envs.pop(0)
@@ -210,25 +215,25 @@ if __name__ == '__main__':
         args = get_commnet_args(args)
     if args.alg.find('g2anet') > -1:
         args = get_g2anet_args(args)
-    timestamp = f'{int(time.time())}_test'
 
-    for i in [0]:
-        seed = 2**32-0-1
+    # 12x12 10A5P
+    # 100x100 40A20P
+
+    seed = 2 ** 32 - 0 - 1
+    for i in range(20):
         np.random.seed(seed)
         torch.random.manual_seed(seed)
 
-        env = gym.make('PredatorPrey5x5-v0')
+        switch = i*1000
 
-
+        timestamp = f'{int(time.time())}_5x5_{switch}_to_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_100'
+        train_env_duration = [switch, None]
         train_envs = [
-            gym.make('PredatorPrey5x5-v0', grid_shape=(7,7), step_cost=0, penalty=0, prey_capture_reward=10, time_proportional=True),
-            gym.make('PredatorPrey5x5-v0', grid_shape=(7,7), step_cost=0, penalty=0, prey_capture_reward=10, time_proportional=True, n_agents=32)
+             gym.make('PredatorPrey5x5-v0', step_cost=0, penalty=0, seed=0),
+             gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12),         n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=0)
         ]
-
-        eval_env = gym.make('PredatorPrey5x5-v0', grid_shape=(7, 7), step_cost=0, penalty=0, prey_capture_reward=10, time_proportional=True, n_agents=32)
-        target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(7, 7), n_agents=32)
-
-        train_env_duration = [10000, None]
+        eval_env =   gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=100)
+        target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0)
 
         env = Curriculum(train_envs, eval_env, target_env, args=args, train_env_duration=train_env_duration)
 
