@@ -25,10 +25,11 @@ class Runner:
         #     self.buffer = ReplayBuffer(args)
 
         self.args = args
-        self.win_rates = []
-        self.eval_rewards = []
-        self.train_rewards = []
-        self.train_win_rates = []
+
+        self.metrics = {
+            'eval': dict(win_tag=[], ep_reward=[]),
+            'train': dict(win_tag=[], ep_reward=[]),
+        }
 
         # 用来保存plt和pkl
         self.save_path = self.args.result_dir + '/' + args.alg + '/' + args.map
@@ -37,37 +38,16 @@ class Runner:
 
     def run(self, num):
         train_steps = 0
-        # print('Run {} start'.format(num))
-        cumulative_train_reward = 0
-        train_win_number = 0
-        for epoch in range(self.args.n_epoch):
-            if epoch % self.args.evaluate_cycle == 0:
-                self.train_rewards.append(cumulative_train_reward / self.args.evaluate_cycle)
-                self.train_win_rates.append(train_win_number / self.args.evaluate_cycle)
-                cumulative_train_reward = 0
-                train_win_number = 0
 
-                print('{} Run {:4} eval epoch  {:12}'.format(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
-
-                win_rate, eval_episode_reward = self.evaluate()
-                # print('win_rate is ', win_rate)
-                self.win_rates.append(win_rate)
-                self.eval_rewards.append(eval_episode_reward)
-                self.plt(num)
-
+        for epoch in range(1, self.args.n_epoch+1):
             episodes = []
-            # 收集self.args.n_episodes个episodes
-            if epoch % self.args.evaluate_cycle == 0:
-                print('{} Run {:4} train epoch {:12}'.format( time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
 
             for episode_idx in range(self.args.n_episodes):
                 episode, ep_reward, win_tag = self.rolloutWorker.generate_episode(episode_idx)
-                cumulative_train_reward += ep_reward
-                train_win_number += int(win_tag)
+                self.metrics['train']['ep_reward'].append(ep_reward)
+                self.metrics['train']['win_tag'].append(win_tag)
                 episodes.append(episode)
 
-
-            # episode的每一项都是一个(1, episode_len, n_agents, 具体维度)四维数组，下面要把所有episode的的obs拼在一起
             episode_batch = episodes[0]
             episodes.pop(0)
             for episode in episodes:
@@ -77,58 +57,51 @@ class Runner:
                 self.agents.train(episode_batch, train_steps, self.rolloutWorker.epsilon)
                 train_steps += 1
             else:
-                # self.buffer.store_episode(episode_batch)
                 self.env.buffer.store_episode(episode_batch)
                 for train_step in range(self.args.train_steps):
-                    # mini_batch = self.buffer.sample(min(self.buffer.current_size, self.args.batch_size))
                     mini_batch = self.env.buffer.sample(min(self.env.buffer.current_size, self.args.batch_size))
                     self.agents.train(mini_batch, train_steps)
                     train_steps += 1
+
+            # evaluate
+            if epoch % self.args.evaluate_cycle == 0:
+                # print('{} Run {:4} eval epoch  {:12}'.format(time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()), num, epoch))
+                self.evaluate()
+                self.plt(num)
+
         self.plt(num)
 
     def evaluate(self, render=False):
-        win_number = 0
-        episode_rewards = 0
-        self.eval_reward_dist = np.zeros(self.args.evaluate_epoch)
-
         self.env.eval()
         for epoch in range(self.args.evaluate_epoch):
-            _, episode_reward, win_tag = self.rolloutWorker.generate_episode(epoch, evaluate=True, render=render)
-            episode_rewards += episode_reward
-            self.eval_reward_dist[epoch] = episode_reward
-            if win_tag:
-                win_number += 1
+            _, ep_reward, win_tag = self.rolloutWorker.generate_episode(epoch, evaluate=True, render=render)
+            self.metrics['eval']['ep_reward'].append(ep_reward)
+            self.metrics['eval']['win_tag'].append(win_tag)
         self.env.train()
-
-
-
-        return win_number / self.args.evaluate_epoch, episode_rewards / self.args.evaluate_epoch
 
 
     def plt(self, num):
         # num = 'test'
-        fig = plt.figure()
+        labels = []
+        datas = []
+        n_plots = 0
+
+
+        for phase, metrics in self.metrics.items():
+            for metric, data in metrics.items():
+                labels.append(f'{phase} {metric}')
+                datas.append(np.array(data))
+                n_plots += 1
+
+        fig, axes = plt.subplots(n_plots, 1)
         fig.set_size_inches(15, 10)
-        plt.cla()
 
-        plt.axis([0, self.args.n_epoch, 0, 100])
-        plt.subplot(4, 1, 1)
-        plt.plot(range(len(self.win_rates)), self.win_rates)
-        plt.ylabel('eval win_rate')
-
-        plt.subplot(4, 1, 2)
-        plt.plot(range(len(self.train_win_rates)), self.train_win_rates)
-        plt.ylabel('train win_rate')
-
-        plt.subplot(4, 1, 3)
-        plt.plot(range(len(self.eval_rewards)), self.eval_rewards)
-        plt.ylabel('eval cumul. R')
-
-
-        plt.subplot(4, 1, 4)
-        plt.plot(range(len(self.train_rewards)), self.train_rewards)
-        plt.xlabel('epoch*{}'.format(self.args.evaluate_cycle))
-        plt.ylabel('train cumul. R')
+        # self.args.evaluate_cycle
+        for ax, data, label in zip(axes, datas, labels):
+            d = np.sort(data.reshape(self.args.evaluate_cycle, -1), axis=0)
+            img = ax.imshow(d)
+            plt.colorbar(img, ax=ax)
+            ax.set_ylabel(label)
 
         plt.tight_layout()
 
@@ -136,14 +109,14 @@ class Runner:
             os.mkdir(f'{self.save_path}/{self.timestamp}')
 
         plt.savefig(self.save_path + '/{}/plot.png'.format(self.timestamp), format='png')
-        np.save(self.save_path + '/{}/win_rates'.format(self.timestamp), self.win_rates)
-        np.save(self.save_path + '/{}/eval_rewards'.format(self.timestamp), self.eval_rewards)
-        np.save(self.save_path + '/{}/train_rewards'.format(self.timestamp), self.train_rewards)
 
-        with open(self.save_path + '/{}/eval_reward_distribution.dat'.format(self.timestamp), 'a') as out:
-            np.savetxt(out, self.eval_reward_dist.reshape(1, -1), fmt='%.2f')
+        for phase, metrics in self.metrics.items():
+            for metric, data in metrics.items():
+                np.save(f'{self.save_path}/{self.timestamp}/{phase}_{metric}.npy', np.array(data))
+                n_plots += 1
 
         plt.close(fig)
+        plt.cla()
 
 
 
