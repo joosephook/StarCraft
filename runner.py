@@ -101,7 +101,7 @@ class Runner:
 
         # self.args.evaluate_cycle
         for ax, data, label in zip(axes, datas, labels):
-            d = np.sort(data.reshape(self.args.evaluate_cycle, -1), axis=0)
+            d = np.sort(data.reshape(-1, self.args.evaluate_cycle).T, axis=0)
             img = ax.imshow(d, interpolation='none', aspect='auto')
             ax.set_xticks(np.arange(d.shape[1]))
             plt.colorbar(img, ax=ax)
