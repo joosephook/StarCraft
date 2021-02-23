@@ -110,7 +110,7 @@ def get_mixer_args(args):
     args.buffer_size = int(5e3)
 
     # how often to save the model
-    args.save_cycle = 5000
+    args.save_cycle = args.evaluate_cycle
 
     # how often to update the target_net
     args.target_update_cycle = 200
