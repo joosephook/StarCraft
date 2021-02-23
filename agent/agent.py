@@ -13,8 +13,8 @@ from torch.distributions import Categorical
 
 # Agent no communication
 class Agents:
-    def __init__(self, env, args, timestamp):
-        self.timestamp = timestamp
+    def __init__(self, env, args, save_path):
+        self.save_path = save_path
         self.env = env
         self.n_actions = args.n_actions
         self.n_agents = args.n_agents
@@ -23,7 +23,7 @@ class Agents:
         if args.alg == 'vdn':
             self.policy = VDN(args)
         elif args.alg == 'qmix':
-            self.policy = QMIX(env, args, timestamp)
+            self.policy = QMIX(env, args, save_path)
         elif args.alg == 'coma':
             self.policy = COMA(args)
         elif args.alg == 'qtran_alt':

@@ -15,11 +15,15 @@ class Runner:
         self.env = env
         self.env.runner = self
 
+        self.save_path = args.result_dir + '/' + timestamp
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
+
         if args.alg.find('commnet') > -1 or args.alg.find('g2anet') > -1:  # communication agent
             self.agents = CommAgents(args)
             self.rolloutWorker = CommRolloutWorker(env, self.agents, args)
         else:  # no communication agent
-            self.agents = Agents(env, args, self.timestamp)
+            self.agents = Agents(env, args, self.save_path)
             self.rolloutWorker = RolloutWorker(env, self.agents, args) # TODO: when change number of agents, must create new agents.
         # if args.learn and args.alg.find('coma') == -1 and args.alg.find('central_v') == -1 and args.alg.find('reinforce') == -1:  # these 3 algorithms are on-poliy
         #     self.buffer = ReplayBuffer(args)
@@ -32,9 +36,6 @@ class Runner:
         }
 
         # 用来保存plt和pkl
-        self.save_path = self.args.result_dir + '/' + args.alg + '/' + args.map
-        if not os.path.exists(self.save_path):
-            os.makedirs(self.save_path)
 
     def run(self, num):
         train_steps = 0
@@ -109,15 +110,18 @@ class Runner:
 
         plt.tight_layout()
 
-        if not os.path.isdir(f'{self.save_path}/{self.timestamp}'):
-            os.mkdir(f'{self.save_path}/{self.timestamp}')
+        if not os.path.isdir(f'{self.save_path}'):
+            os.mkdir(f'{self.save_path}')
 
-        plt.savefig(self.save_path + '/{}/plot.png'.format(self.timestamp), format='png')
+        plt.savefig(self.save_path + '/plot.png'.format(self.timestamp), format='png')
+
+        out_data = {}
 
         for phase, metrics in self.metrics.items():
             for metric, data in metrics.items():
-                np.save(f'{self.save_path}/{self.timestamp}/{phase}_{metric}.npy', np.array(data))
-                n_plots += 1
+                out_data[f'{phase}_{metric}'] = np.array(data)
+
+        np.savez(f'{self.save_path}/data.npz', **out_data)
 
         plt.close(fig)
         plt.clf()
