@@ -219,20 +219,20 @@ if __name__ == '__main__':
     # 12x12 10A5P
     # 100x100 40A20P
 
-    seed = 2 ** 32 - 0 - 1
-    for i in range(20):
+    seed = 2 ** 32 - 1 - 1
+    for i in range(10):
         np.random.seed(seed)
         torch.random.manual_seed(seed)
 
         switch = i*1000
 
-        timestamp = f'{int(time.time())}_5x5_{switch}_to_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_100'
+        timestamp = f'{int(time.time())}_5x5_{switch}_to_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_101'
         train_env_duration = [switch, None]
         train_envs = [
              gym.make('PredatorPrey5x5-v0', step_cost=0, penalty=0, seed=0),
              gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12),         n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=0)
         ]
-        eval_env =   gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=100)
+        eval_env =   gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=101)
         target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0)
 
         env = Curriculum(train_envs, eval_env, target_env, args=args, train_env_duration=train_env_duration)
