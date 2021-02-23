@@ -126,11 +126,14 @@ from common.replay_buffer import ReplayBuffer
 class Curriculum:
     def __init__(self, train_envs, eval_env, target_env, train_env_duration=None, args=None):
         assert(len(train_envs)), "Nowhere to train"
+        assert args.n_epoch % args.evaluate_cycle == 0, "Make sure the number of episodes trained is divisible by evaluate cycle"
 
         args.n_agents_max = target_env.n_agents
 
         # target_obs_structure = target_env.get_agent_sections(0)
         # target_state_structure = target_env.get_state(structure=True)
+        args.n_epoch = sum(train_env_duration)
+
 
         for env in chain(train_envs, [eval_env]):
             translator = TranslatorMixin(env.observations[0].sections, target_env.observations[0].sections,
@@ -227,7 +230,7 @@ if __name__ == '__main__':
         switch = i*1000
 
         timestamp = f'{int(time.time())}_5x5_{switch}_to_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_101'
-        train_env_duration = [switch, None]
+        train_env_duration = [switch, 20_000]
         train_envs = [
              gym.make('PredatorPrey5x5-v0', step_cost=0, penalty=0, seed=0),
              gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12),         n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=0)
