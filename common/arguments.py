@@ -103,7 +103,8 @@ def get_mixer_args(args):
     args.train_steps = 1
 
     # # how often to evaluate
-    args.evaluate_cycle = 100
+    args.evaluate_cycle = 50
+    args.evaluate_epoch = args.evaluate_cycle
 
     # experience replay
     args.batch_size = 32
