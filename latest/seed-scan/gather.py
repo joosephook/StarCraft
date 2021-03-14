@@ -33,7 +33,9 @@ for root, file in get_files('.', lambda x: x == 'data.npz'):
         except KeyError:
             print(f'Skipping {ts}')
 
-
-np.save('data.npy', data)
+for run, timestep in data.items():
+    for ts, (weights, metrics) in timestep.items():
+        targets = [np.mean(metrics['eval_win_tag']), np.mean(metrics['eval_ep_reward'])]
+        print(weights, targets)
 
 

@@ -1,6 +1,10 @@
 import torch
-import torch.nn.modules as nn
 import torch.nn.functional as F
+import torch.nn.modules as nn
+# shape = (8, 192)
+from torch.utils.data import TensorDataset, DataLoader
+
+from find_weights import get_weights
 
 
 class VAE(torch.nn.Module):
@@ -18,9 +22,9 @@ class VAE(torch.nn.Module):
         return self.fc21(h1), self.fc22(h1)
 
     def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5*logvar)
+        std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
-        return mu + eps*std
+        return mu + eps * std
 
     def decode(self, z):
         h3 = F.relu(self.fc3(z))
@@ -49,15 +53,14 @@ class GRUVAE(torch.nn.Module):
         self.gru3 = nn.GRU(input_size=latent_size, hidden_size=second_size, batch_first=True)
         self.gru4 = nn.GRU(input_size=second_size, hidden_size=input_size, batch_first=True)
 
-
     def encode(self, x):
         # h1 = F.relu(self.fc1(x))
         # return self.fc21(h1), self.fc22(h1)
         xs = x
-        xs, _ = self.gru1(x) # hidden defaults to 0 if not specified
+        xs, _ = self.gru1(x)  # hidden defaults to 0 if not specified
         xs = F.relu(xs)
         mu_hs, _ = self.gru2mu(xs)
-        mu_hs = torch.tanh(mu_hs)# hidden defaults to 0
+        mu_hs = torch.tanh(mu_hs)  # hidden defaults to 0
         logvar_hs, _ = self.gru2logvar(xs)
         logvar_hs = torch.tanh(logvar_hs)
 
@@ -65,9 +68,9 @@ class GRUVAE(torch.nn.Module):
         return mu_hs, logvar_hs
 
     def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5*logvar)
+        std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
-        return mu + eps*std
+        return mu + eps * std
 
     def decode(self, z):
         # hs = z.reshape(-1, 1000)
@@ -85,10 +88,10 @@ class GRUVAE(torch.nn.Module):
         return self.decode(z), mu, logvar
 
 
-
-def loss_function(recon_x, x, mu, logvar):
+def loss_function(recon_x, x, mu, logvar, mask=None):
     # BCE = F.binary_cross_entropy(recon_x.view, x.view(-1, 784), reduction='sum')
-    BCE = F.mse_loss(recon_x, x) # NOT BINARY CROSSENTROPY!
+    # MSE = F.mse_loss(torch.masked_select(recon_x, mask), torch.masked_select(x, mask)) # NOT BINARY CROSSENTROPY!
+    MSE = F.l1_loss(torch.masked_select(recon_x, mask), torch.masked_select(x, mask))  # NOT BINARY CROSSENTROPY!
 
     # see Appendix B from VAE paper:
     # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014
@@ -96,9 +99,8 @@ def loss_function(recon_x, x, mu, logvar):
     # 0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)
     KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    return BCE + KLD
+    return MSE, KLD
 
-from torch.nn.utils.rnn import pad_sequence
 
 def pad_right(tensors):
     max_width = max(t.size(-1) for t in tensors)
@@ -113,13 +115,37 @@ def pad_right(tensors):
             p[0, :t.size(0)] = t
 
         padded.append(p)
+
     return padded
 
+
+def get_mask(tensors):
+    max_width = max(t.size(-1) for t in tensors)
+    mask = []
+
+    for t in tensors:
+        if len(t.size()) == 2:
+            m = torch.zeros(t.size(0), max_width)
+            m[:, :t.size(1)] = 1.0
+
+        elif len(t.size()) == 1:
+            m = torch.zeros(1, max_width)
+            m[0, :t.size(0)] = 1.0
+
+        mask.append(m)
+
+    return mask
+
+
+def get_shapes(tensors):
+    return [t.size() for t in tensors]
+
+
 if __name__ == '__main__':
-    from find_weights import get_weights
+
     torch.manual_seed(0)
     weight_file = '/home/joosep/PycharmProjects/StarCraft/latest/seed-scan/1614471632_5x5_eval_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_109/params/50_rnn_net_params.pkl'
-    params= torch.load(weight_file)
+    params = torch.load(weight_file)
 
     # weights = [w.view(-1, 1) for name, w in params.items()]
     # padded = pad_sequence(weights)
@@ -129,34 +155,47 @@ if __name__ == '__main__':
     # weights = [w for name, w in params.items()]
 
     padded_weights = map(pad_right, get_weights())
-    data = torch.cat([torch.cat(w, dim=0).unsqueeze(dim=0) for w in padded_weights], dim=0)
+    data = torch.cat(
+        [torch.cat(w, dim=0).unsqueeze(dim=0) for w in padded_weights], dim=0)
+    print(data[0].size())
 
-    # shape = (8, 192)
-    from torch.utils.data import TensorDataset, DataLoader
 
     dataset = TensorDataset(data, data)
-    train_loader  = DataLoader(dataset, batch_size=32)
+    train_loader = DataLoader(dataset, batch_size=128)
     device = torch.device("cuda" if True else "cpu")
+    mask = torch.eq(
+        torch.cat(get_mask(get_weights()[0]), dim=0).unsqueeze(dim=0), 1.0).to(
+        device)
+    print(mask.size())
 
     model = GRUVAE().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=8e-4)
     print(len(dataset))
 
-    for epoch in range(50):
+    for epoch in range(100):
         train_loss = 0
+        mse_loss = 0.0
+        kld_loss = 0.0
+
         for batch_idx, (data, _) in enumerate(train_loader):
             data = data.to(device)
             optimizer.zero_grad()
             recon_batch, mu, logvar = model(data)
-            loss = loss_function(recon_batch, data, mu, logvar)
+            mse, kld = loss_function(recon_batch, data, mu, logvar, mask=mask)
+            loss = mse + kld
             loss.backward()
             train_loss += loss.item()
+            mse_loss += mse.item()
+            kld_loss += kld.item()
             optimizer.step()
 
-
-        print('Train Epoch: {} [{}/ ({:.0f}%)]\tLoss: {:.6f}'.format(epoch,
-                                                                     batch_idx * len(data),
-                                                                     100. * batch_idx / len(train_loader),
-                                                                     train_loss / len(dataset)
-                                                                     )
-              )
+        print(
+            'Train Epoch: {} [{}/ ({:.0f}%)]\tTotal Loss: {:.6f}, MSE Loss {:.6f}, KLD Loss {:.6f}'.format(
+                epoch,
+                batch_idx * len(data),
+                100. * batch_idx / len(train_loader),
+                train_loss / len(train_loader),
+                mse_loss / len(train_loader),
+                kld_loss / len(train_loader)
+            )
+        )
