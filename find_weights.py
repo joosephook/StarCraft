@@ -30,7 +30,7 @@ def get_data():
         ts = int(file.split('_')[0])
         key = os.path.join(*root.split('/')[:-1])  # remove params
         weights = torch.load(os.path.join(root, file))
-        data[key][ts] = [OrderedDict((k, v.cpu().numpy()) for k, v in weights.items())]
+        data[key][ts] = [OrderedDict((k, v) for k, v in weights.items())]
 
     for root, file in get_files('.', lambda x: x == 'data.npz'):
         d = np.load(os.path.join(root, file))
@@ -45,16 +45,16 @@ def get_data():
             except KeyError:
                 print(f'Skipping {ts}')
 
-    final_data = []
 
+    policy_weights = []
+    performance_targets = []
     for run, timestep in data.items():
         for ts, (weights, metrics) in timestep.items():
-            targets = [np.mean(metrics['eval_win_tag']), np.mean(metrics['eval_ep_reward'])]
-            final_data.append((weights, targets))
+            targets = np.array([np.mean(metrics['eval_win_tag']), np.mean(metrics['eval_ep_reward'])], dtype=np.float32)
+            policy_weights.append(weights)
+            performance_targets.append(targets)
 
-    return final_data
-
-get_data()
+    return policy_weights, performance_targets
 
 
 

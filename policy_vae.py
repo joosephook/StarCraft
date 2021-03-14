@@ -3,8 +3,9 @@ import torch.nn.functional as F
 import torch.nn.modules as nn
 # shape = (8, 192)
 from torch.utils.data import TensorDataset, DataLoader
+import numpy as np
 
-from find_weights import get_weights
+from find_weights import get_weights, get_data
 
 
 class VAE(torch.nn.Module):
@@ -53,16 +54,21 @@ class GRUVAE(torch.nn.Module):
         self.gru3 = nn.GRU(input_size=latent_size, hidden_size=second_size, batch_first=True)
         self.gru4 = nn.GRU(input_size=second_size, hidden_size=input_size, batch_first=True)
 
+
+        # predict performance
+        self.gru5 = nn.GRU(input_size=latent_size, hidden_size=second_size, batch_first=True)
+        self.perf = nn.Linear(second_size, 2)
+
     def encode(self, x):
         # h1 = F.relu(self.fc1(x))
         # return self.fc21(h1), self.fc22(h1)
         xs = x
         xs, _ = self.gru1(x)  # hidden defaults to 0 if not specified
-        xs = F.relu(xs)
+        xs = F.elu(xs)
         mu_hs, _ = self.gru2mu(xs)
-        mu_hs = torch.tanh(mu_hs)  # hidden defaults to 0
+        # mu_hs = torch.tanh(mu_hs)  # hidden defaults to 0
         logvar_hs, _ = self.gru2logvar(xs)
-        logvar_hs = torch.tanh(logvar_hs)
+        # logvar_hs = torch.tanh(logvar_hs)
 
         # return mu_hs.view(-1), logvar_hs.view(-1)
         return mu_hs, logvar_hs
@@ -76,16 +82,21 @@ class GRUVAE(torch.nn.Module):
         # hs = z.reshape(-1, 1000)
         hs = z
         hs, out = self.gru3(hs)
-        hs = F.relu(hs)
+        hs = F.elu(hs)
         hs, out = self.gru4(hs)
-        hs = torch.tanh(hs)
+        # hs = torch.tanh(hs)
 
         return hs
 
     def forward(self, x):
         mu, logvar = self.encode(x)
         z = self.reparameterize(mu, logvar)
-        return self.decode(z), mu, logvar
+        return self.decode(z), mu, logvar, z
+
+    def predict_performance(self, z):
+        hiddens, h = self.gru5(z)
+
+        return self.perf(F.relu(h)).squeeze(dim=0)
 
 
 def loss_function(recon_x, x, mu, logvar, mask=None):
@@ -125,11 +136,11 @@ def get_mask(tensors):
 
     for t in tensors:
         if len(t.size()) == 2:
-            m = torch.zeros(t.size(0), max_width)
+            m = torch.zeros(t.size(0), max_width, dtype=torch.bool)
             m[:, :t.size(1)] = 1.0
 
         elif len(t.size()) == 1:
-            m = torch.zeros(1, max_width)
+            m = torch.zeros(1, max_width, dtype=torch.bool)
             m[0, :t.size(0)] = 1.0
 
         mask.append(m)
@@ -142,7 +153,6 @@ def get_shapes(tensors):
 
 
 if __name__ == '__main__':
-
     torch.manual_seed(0)
     weight_file = '/home/joosep/PycharmProjects/StarCraft/latest/seed-scan/1614471632_5x5_eval_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_109/params/50_rnn_net_params.pkl'
     params = torch.load(weight_file)
@@ -153,49 +163,103 @@ if __name__ == '__main__':
     # print(padded_weights.size())
     # assert padded_weights[0, :2752].equal(weights[0].view(-1))
     # weights = [w for name, w in params.items()]
+    policies, targets = get_data()
+    weights = []
 
-    padded_weights = map(pad_right, get_weights())
-    data = torch.cat(
-        [torch.cat(w, dim=0).unsqueeze(dim=0) for w in padded_weights], dim=0)
-    print(data[0].size())
+    for policy in policies:
+        policy_weights = []
+        for name, param in policy.items():
+            policy_weights.append(param)
 
+        weights.append(policy_weights)
 
-    dataset = TensorDataset(data, data)
-    train_loader = DataLoader(dataset, batch_size=128)
+    padded_weights = map(pad_right, weights)
+
+    data = torch.cat([torch.cat(w, dim=0).unsqueeze(dim=0) for w in padded_weights], dim=0)
+    targets = torch.cat([torch.from_numpy(t).unsqueeze(dim=0) for t in targets], dim=0)
+    # z score
+    targets = targets - torch.mean(targets)
+    targets = targets / torch.std(targets)
+
+    dataset = TensorDataset(data, targets)
+    train_loader = DataLoader(dataset, batch_size=32)
     device = torch.device("cuda" if True else "cpu")
-    mask = torch.eq(
-        torch.cat(get_mask(get_weights()[0]), dim=0).unsqueeze(dim=0), 1.0).to(
-        device)
-    print(mask.size())
+
+    mask = torch.cat(get_mask(weights[0]), dim=0).to(device)
+
 
     model = GRUVAE().to(device)
-    optimizer = torch.optim.RMSprop(model.parameters(), lr=8e-4)
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-4, weight_decay=1e-6)
     print(len(dataset))
 
+    # reconstruction warmup https://stats.stackexchange.com/questions/341954/balancing-reconstruction-vs-kl-loss-variational-autoencoder
     for epoch in range(100):
-        train_loss = 0
+        train_loss = 0.0
+        mse_loss = 0.0
+        perf_loss =0.0
+
+        for batch_idx, (x, target) in enumerate(train_loader):
+            x = x.to(device)
+            target = target.to(device)
+            optimizer.zero_grad()
+            recon_batch, mu, logvar, zs = model(x)
+            mse, kld = loss_function(recon_batch, x, mu, logvar, mask=mask)
+            loss = mse
+
+            ys = model.predict_performance(zs)
+            perf_pred_loss = F.mse_loss(ys, target)
+            loss += perf_pred_loss
+
+            loss.backward()
+            train_loss += loss.item()
+            mse_loss += mse.item()
+            perf_loss += perf_pred_loss.item()
+
+            optimizer.step()
+
+        print(
+            'Train Epoch: {}\tTotal Loss: {:.6f}, MSE Loss {:.6f}, Perf Pred Loss {:.6f}'.format(
+                epoch,
+                train_loss / len(train_loader),
+                mse_loss / len(train_loader),
+                perf_loss / len(train_loader)
+            )
+        )
+
+
+    # all together
+    for epoch in range(100):
+        train_loss = 0.0
         mse_loss = 0.0
         kld_loss = 0.0
+        perf_loss =0.0
 
-        for batch_idx, (data, _) in enumerate(train_loader):
-            data = data.to(device)
+        for batch_idx, (x, target) in enumerate(train_loader):
+            x = x.to(device)
+            target = target.to(device)
             optimizer.zero_grad()
-            recon_batch, mu, logvar = model(data)
-            mse, kld = loss_function(recon_batch, data, mu, logvar, mask=mask)
+            recon_batch, mu, logvar, zs = model(x)
+            mse, kld = loss_function(recon_batch, x, mu, logvar, mask=mask)
             loss = mse + kld
+
+            ys = model.predict_performance(zs)
+            perf_pred_loss = F.mse_loss(ys, target)
+            loss += perf_pred_loss
+
             loss.backward()
             train_loss += loss.item()
             mse_loss += mse.item()
             kld_loss += kld.item()
+            perf_loss += perf_pred_loss.item()
+
             optimizer.step()
 
         print(
-            'Train Epoch: {} [{}/ ({:.0f}%)]\tTotal Loss: {:.6f}, MSE Loss {:.6f}, KLD Loss {:.6f}'.format(
+            'Train Epoch: {}\tTotal Loss: {:.6f}, MSE Loss {:.6f}, KLD Loss {:.6f}, Perf Pred Loss {:.6f}'.format(
                 epoch,
-                batch_idx * len(data),
-                100. * batch_idx / len(train_loader),
                 train_loss / len(train_loader),
                 mse_loss / len(train_loader),
-                kld_loss / len(train_loader)
+                kld_loss / len(train_loader),
+                perf_loss / len(train_loader)
             )
         )
