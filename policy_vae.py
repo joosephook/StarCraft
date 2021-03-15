@@ -216,7 +216,7 @@ class PolicyWrapper:
             dr, dc = size
 
             weights = padded_tensor[r:r+dr, :dc]
-            params.append((name, weights))
+            params.append((name, weights.squeeze(dim=0)))
             r += dr
 
         return OrderedDict(params)
@@ -259,8 +259,8 @@ if __name__ == '__main__':
         noise = torch.randn((1024, padded.size(0), 4)).to(device)
         x = model.decode(noise)
         best = torch.argmax(model.predict_performance(noise))
-        test_policy = wrapper.to_policy(noise[best].to("cpu"))
-        torch.save(test_policy, "test_rnn.pt")
+        test_policy = wrapper.to_policy(x[best].to("cpu"))
+        torch.save(test_policy, "weights.pt")
         exit(0)
 
     model = GRUVAE().to(device)
