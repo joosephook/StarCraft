@@ -1,3 +1,5 @@
+import os
+
 import torch
 import torch.nn.functional as F
 import torch.nn.modules as nn
@@ -57,7 +59,7 @@ class GRUVAE(torch.nn.Module):
 
         # predict performance
         self.gru5 = nn.GRU(input_size=latent_size, hidden_size=second_size, batch_first=True)
-        self.perf = nn.Linear(second_size, 2)
+        self.perf = nn.Linear(second_size, 1)
         self.eps = None
         self.noise_fixed = True
 
@@ -162,17 +164,20 @@ def get_shapes(tensors):
     return [t.size() for t in tensors]
 
 
-class PolicyWrapper:
-    def __init__(self, tensors):
-        self.sizes = [t.size() for t in tensors]
-        self.widths = [t.size(-1) for t in tensors]
-        self.max_width = max(self.widths)
-        self.masks = self.get_mask(tensors)
+from collections import OrderedDict
 
-    def pad_right(self, tensors):
+class PolicyWrapper:
+    def __init__(self, params: OrderedDict):
+        self.names = [n for n in params.keys()]
+        self.sizes = [t.size() for n, t in params.items()]
+        self.widths = [t.size(-1) for n, t in params.items()]
+        self.max_width = max(self.widths)
+        self.masks = self.get_mask(params)
+
+    def pad_right(self, params: OrderedDict):
         padded = []
 
-        for t in tensors:
+        for n, t in params.items():
             if len(t.size()) == 2:
                 p = torch.zeros(t.size(0), self.max_width)
                 p[:, :t.size(1)] = t
@@ -184,10 +189,10 @@ class PolicyWrapper:
 
         return padded
 
-    def get_mask(self, tensors):
+    def get_mask(self, params: OrderedDict):
         mask = []
 
-        for t in tensors:
+        for n, t in params.items():
             if len(t.size()) == 2:
                 m = torch.zeros(t.size(0), self.max_width, dtype=torch.bool)
                 m[:, :t.size(1)] = 1.0
@@ -200,20 +205,21 @@ class PolicyWrapper:
 
         return mask
 
-    def to_policy(self, padded_tensors):
+    def to_policy(self, padded_tensor):
         params = []
 
         r = 0
-        for size, mask in zip(self.sizes, self.masks):
+        for size, name in zip(self.sizes, self.names):
             if len(size) == 1:
-                size = size.unsqueeze(dim=0)
+                size = (1, size[0])
 
             dr, dc = size
 
-            weights = padded_tensors[r:r+dr, :dc]
-            params.append(weights)
+            weights = padded_tensor[r:r+dr, :dc]
+            params.append((name, weights))
+            r += dr
 
-        return params
+        return OrderedDict(params)
 
 
 
@@ -222,42 +228,46 @@ if __name__ == '__main__':
     weight_file = '/home/joosep/PycharmProjects/StarCraft/latest/seed-scan/1614471632_5x5_eval_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_109/params/50_rnn_net_params.pkl'
     params = torch.load(weight_file)
 
-    # weights = [w.view(-1, 1) for name, w in params.items()]
-    # padded = pad_sequence(weights)
-    # padded_weights = padded.squeeze().T
-    # print(padded_weights.size())
-    # assert padded_weights[0, :2752].equal(weights[0].view(-1))
-    # weights = [w for name, w in params.items()]
+    wrapper = PolicyWrapper(params)
+    padded = torch.cat(wrapper.pad_right(params), dim=0)
+    policy = wrapper.to_policy(padded)
+    print(padded.size())
+
+    for (no, original), (nr, reconstructed) in zip(params.items(), policy.items()):
+        assert no == nr
+        assert torch.sum(original - reconstructed) == 0, torch.sum(original - reconstructed)
+
     policies, targets = get_data()
-    weights = []
-
-    for policy in policies:
-        policy_weights = []
-        for name, param in policy.items():
-            policy_weights.append(param)
-
-        weights.append(policy_weights)
-
-    padded_weights = map(pad_right, weights)
+    padded_weights = map(wrapper.pad_right, policies)
 
     data = torch.cat([torch.cat(w, dim=0).unsqueeze(dim=0) for w in padded_weights], dim=0)
     targets = torch.cat([torch.from_numpy(t).unsqueeze(dim=0) for t in targets], dim=0)
     # z score
-    targets = targets - torch.mean(targets)
-    targets = targets / torch.std(targets)
+    # targets = targets - torch.mean(targets)
+    targets = targets / torch.max(targets)
 
     dataset = TensorDataset(data, targets)
     train_loader = DataLoader(dataset, batch_size=32)
     device = torch.device("cuda" if True else "cpu")
 
-    mask = torch.cat(get_mask(weights[0]), dim=0).to(device)
+    mask = torch.cat(wrapper.masks, dim=0).to(device)
 
+    if os.path.isfile('model.pt'):
+        model = GRUVAE().to(device)
+        weights = torch.load('model.pt', map_location=device)
+        model.load_state_dict(weights)
+        noise = torch.randn((1024, padded.size(0), 4)).to(device)
+        x = model.decode(noise)
+        best = torch.argmax(model.predict_performance(noise))
+        test_policy = wrapper.to_policy(noise[best].to("cpu"))
+        torch.save(test_policy, "test_rnn.pt")
+        exit(0)
 
     model = GRUVAE().to(device)
-    optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-3, weight_decay=1e-6)
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=5e-4, weight_decay=1e-6)
 
     # reconstruction warmup https://stats.stackexchange.com/questions/341954/balancing-reconstruction-vs-kl-loss-variational-autoencoder
-    for epoch in range(200):
+    for epoch in range(50):
         train_loss = 0.0
         mse_loss = 0.0
         perf_loss =0.0
@@ -291,7 +301,7 @@ if __name__ == '__main__':
         )
 
     # all together
-    for epoch in range(100):
+    for epoch in range(50):
         train_loss = 0.0
         mse_loss = 0.0
         kld_loss = 0.0
@@ -330,7 +340,7 @@ if __name__ == '__main__':
 
     model.noise_fixed = False
     # all together
-    for epoch in range(100):
+    for epoch in range(200):
         train_loss = 0.0
         mse_loss = 0.0
         kld_loss = 0.0

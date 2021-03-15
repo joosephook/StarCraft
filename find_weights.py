@@ -51,6 +51,7 @@ def get_data():
     for run, timestep in data.items():
         for ts, (weights, metrics) in timestep.items():
             targets = np.array([np.mean(metrics['eval_win_tag']), np.mean(metrics['eval_ep_reward'])], dtype=np.float32)
+            targets = np.array([np.mean(metrics['eval_ep_reward'])], dtype=np.float32)
             policy_weights.append(weights)
             performance_targets.append(targets)
 
