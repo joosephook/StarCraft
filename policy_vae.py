@@ -162,6 +162,61 @@ def get_shapes(tensors):
     return [t.size() for t in tensors]
 
 
+class PolicyWrapper:
+    def __init__(self, tensors):
+        self.sizes = [t.size() for t in tensors]
+        self.widths = [t.size(-1) for t in tensors]
+        self.max_width = max(self.widths)
+        self.masks = self.get_mask(tensors)
+
+    def pad_right(self, tensors):
+        padded = []
+
+        for t in tensors:
+            if len(t.size()) == 2:
+                p = torch.zeros(t.size(0), self.max_width)
+                p[:, :t.size(1)] = t
+            elif len(t.size()) == 1:
+                p = torch.zeros(1, self.max_width)
+                p[0, :t.size(0)] = t
+
+            padded.append(p)
+
+        return padded
+
+    def get_mask(self, tensors):
+        mask = []
+
+        for t in tensors:
+            if len(t.size()) == 2:
+                m = torch.zeros(t.size(0), self.max_width, dtype=torch.bool)
+                m[:, :t.size(1)] = 1.0
+
+            elif len(t.size()) == 1:
+                m = torch.zeros(1, self.max_width, dtype=torch.bool)
+                m[0, :t.size(0)] = 1.0
+
+            mask.append(m)
+
+        return mask
+
+    def to_policy(self, padded_tensors):
+        params = []
+
+        r = 0
+        for size, mask in zip(self.sizes, self.masks):
+            if len(size) == 1:
+                size = size.unsqueeze(dim=0)
+
+            dr, dc = size
+
+            weights = padded_tensors[r:r+dr, :dc]
+            params.append(weights)
+
+        return params
+
+
+
 if __name__ == '__main__':
     torch.manual_seed(0)
     weight_file = '/home/joosep/PycharmProjects/StarCraft/latest/seed-scan/1614471632_5x5_eval_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_109/params/50_rnn_net_params.pkl'
@@ -200,7 +255,6 @@ if __name__ == '__main__':
 
     model = GRUVAE().to(device)
     optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-3, weight_decay=1e-6)
-    print(len(dataset))
 
     # reconstruction warmup https://stats.stackexchange.com/questions/341954/balancing-reconstruction-vs-kl-loss-variational-autoencoder
     for epoch in range(200):
