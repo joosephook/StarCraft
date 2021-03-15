@@ -43,7 +43,7 @@ class GRUVAE(torch.nn.Module):
         # 12288
         # encode
         input_size = 192
-        second_size = 64
+        second_size = 32
         latent_size = 4
 
         self.gru1 = nn.GRU(input_size=input_size, hidden_size=second_size, batch_first=True)
@@ -58,6 +58,8 @@ class GRUVAE(torch.nn.Module):
         # predict performance
         self.gru5 = nn.GRU(input_size=latent_size, hidden_size=second_size, batch_first=True)
         self.perf = nn.Linear(second_size, 2)
+        self.eps = None
+        self.noise_fixed = True
 
     def encode(self, x):
         # h1 = F.relu(self.fc1(x))
@@ -74,9 +76,17 @@ class GRUVAE(torch.nn.Module):
         return mu_hs, logvar_hs
 
     def reparameterize(self, mu, logvar):
+
         std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        return mu + eps * std
+        if self.noise_fixed:
+            if self.eps is None:
+                self.eps = torch.randn((1, *std.size()[1:])).to("cuda:0")
+
+
+            return mu + self.eps * std
+        else:
+            eps = torch.randn((1, *std.size()[1:])).to("cuda:0")
+            return mu + eps * std
 
     def decode(self, z):
         # hs = z.reshape(-1, 1000)
@@ -189,11 +199,11 @@ if __name__ == '__main__':
 
 
     model = GRUVAE().to(device)
-    optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-4, weight_decay=1e-6)
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=1e-3, weight_decay=1e-6)
     print(len(dataset))
 
     # reconstruction warmup https://stats.stackexchange.com/questions/341954/balancing-reconstruction-vs-kl-loss-variational-autoencoder
-    for epoch in range(100):
+    for epoch in range(200):
         train_loss = 0.0
         mse_loss = 0.0
         perf_loss =0.0
@@ -225,7 +235,6 @@ if __name__ == '__main__':
                 perf_loss / len(train_loader)
             )
         )
-
 
     # all together
     for epoch in range(100):
@@ -263,3 +272,43 @@ if __name__ == '__main__':
                 perf_loss / len(train_loader)
             )
         )
+
+
+    model.noise_fixed = False
+    # all together
+    for epoch in range(100):
+        train_loss = 0.0
+        mse_loss = 0.0
+        kld_loss = 0.0
+        perf_loss =0.0
+
+        for batch_idx, (x, target) in enumerate(train_loader):
+            x = x.to(device)
+            target = target.to(device)
+            optimizer.zero_grad()
+            recon_batch, mu, logvar, zs = model(x)
+            mse, kld = loss_function(recon_batch, x, mu, logvar, mask=mask)
+            loss = mse + kld
+
+            ys = model.predict_performance(zs)
+            perf_pred_loss = F.mse_loss(ys, target)
+            loss += perf_pred_loss
+
+            loss.backward()
+            train_loss += loss.item()
+            mse_loss += mse.item()
+            kld_loss += kld.item()
+            perf_loss += perf_pred_loss.item()
+
+            optimizer.step()
+
+        print(
+            'Train Epoch: {}\tTotal Loss: {:.6f}, MSE Loss {:.6f}, KLD Loss {:.6f}, Perf Pred Loss {:.6f}'.format(
+                epoch,
+                train_loss / len(train_loader),
+                mse_loss / len(train_loader),
+                kld_loss / len(train_loader),
+                perf_loss / len(train_loader)
+            )
+        )
+    torch.save(model.state_dict(), 'model.pt')
