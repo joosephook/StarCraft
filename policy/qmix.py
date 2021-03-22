@@ -64,14 +64,20 @@ class QMIX:
         self.target_qmix_net.load_state_dict(self.eval_qmix_net.state_dict())
 
         self.eval_parameters = list(self.eval_qmix_net.parameters()) + list(self.eval_rnn.parameters())
+
+
+        self.lr = args.lr
         if args.optimizer == "RMS":
-            self.optimizer = torch.optim.RMSprop(self.eval_parameters, lr=args.lr)
+            self.optimizer = torch.optim.RMSprop(self.eval_parameters, lr=self.lr)
 
         # 执行过程中，要为每个agent都维护一个eval_hidden
         # 学习过程中，要为每个episode的每个agent都维护一个eval_hidden、target_hidden
         self.eval_hidden = None
         self.target_hidden = None
         print('Init alg QMIX')
+
+    def reset_optimiser(self):
+        self.optimizer = torch.optim.RMSprop(self.eval_parameters, lr=self.lr)
 
     def learn(self, batch, max_episode_len, train_step, epsilon=None):  # train_step表示是第几次学习，用来控制更新target_net网络的参数
         '''
@@ -88,7 +94,7 @@ class QMIX:
             else:
                 batch[key] = torch.tensor(batch[key], dtype=torch.float32)
         s, s_next, u, r, avail_u, avail_u_next, terminated = batch['s'], batch['s_next'], batch['u'], \
-                                                             batch['r'],  batch['avail_u'], batch['avail_u_next'],\
+                                                             batch['r'],  batch['avail_u'], batch['avail_u_next'], \
                                                              batch['terminated']
         mask = 1 - batch["padded"].float()  # 用来把那些填充的经验的TD-error置0，从而不让它们影响到学习
 

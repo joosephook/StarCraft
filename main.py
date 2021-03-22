@@ -184,6 +184,9 @@ class Curriculum:
                 self.env = self.train_env
                 # self.runner.rolloutWorker.epsilon = 1.0
                 print(f'Now have {self.env.args.n_agents} agents')
+                # TODO: optimizer reset?
+                print(f'Resetting optimiser...')
+                self.runner.agents.policy.reset_optimiser()
 
         return getattr(self.env, item)
         # return getattr(getattr(self, 'env'), item)
@@ -221,22 +224,20 @@ if __name__ == '__main__':
 
     # 12x12 10A5P
     # 100x100 40A20P
-
-
-    for i in range(10):
-        seed = 2 ** 32-i-1
+    for i in range(1, 10):
+        seed = 2 ** 32-0-1
 
         np.random.seed(seed)
         torch.random.manual_seed(seed)
 
         switch = i*1000
-        eval_seed = 100+i
+        eval_seed = 100
 
-        timestamp = f'{int(time.time())}_5x5_eval_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_{eval_seed}'
-        train_env_duration = [20_000]
+        timestamp = f'{int(time.time())}_5x5_{switch}_eval_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_{eval_seed}'
+        train_env_duration = [switch, 20_000]
         train_envs = [
              gym.make('PredatorPrey5x5-v0', step_cost=0, penalty=0, seed=0),
-             # gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12),         n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=0)
+             gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12),         n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=0)
         ]
         eval_env =   gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=eval_seed)
         target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0)
