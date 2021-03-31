@@ -77,11 +77,15 @@ class Agents:
         else:
             ## WARNING - should add if some actions are NOT available
             # q_value[avail_actions == 0.0] = - float("inf")
-            if np.random.uniform() < epsilon:
+            r = np.random.uniform()
+            if r < epsilon:
                 action = np.random.choice(avail_actions_ind)  # action是一个整数
             else:
-                action = torch.argmax(q_value)
-        return action
+                action = torch.argmax(q_value[0][avail_actions_ind])
+
+        assert action <= avail_actions_ind[-1]
+
+        return avail_actions_ind[action]
 
     def _choose_action_from_softmax(self, inputs, avail_actions, epsilon, evaluate=False):
         """

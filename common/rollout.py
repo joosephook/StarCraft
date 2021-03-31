@@ -64,7 +64,11 @@ class RolloutWorker:
             state = self.env.get_state()
             actions, avail_actions, actions_onehot = [], [], []
             for agent_id in range(self.env.args.n_agents):
-                avail_action = np.ones(self.env.args.n_actions)
+                # avail_action = np.ones(self.env.args.n_actions)
+                agent_avail_action = self.env.get_avail_agent_actions(agent_id)
+                avail_action = np.zeros(self.env.args.n_actions)
+                avail_action[:agent_avail_action.shape[0]]=agent_avail_action
+
                 if self.args.alg == 'maven':
                     action = self.agents.choose_action(obs[agent_id], last_action[agent_id], agent_id,
                                                        avail_action, epsilon, maven_z, evaluate)
