@@ -14,19 +14,6 @@ class ReplayBuffer:
         # memory management
         self.current_idx = 0
         self.current_size = 0
-        # create the buffer to store info
-        self.buffers = {'o': np.empty([self.size, self.episode_limit, self.n_agents, self.obs_shape]),
-                        'u': np.empty([self.size, self.episode_limit, self.n_agents, 1]),
-                        's': np.empty([self.size, self.episode_limit, self.state_shape]),
-                        'r': np.empty([self.size, self.episode_limit, 1]),
-                        'o_next': np.empty([self.size, self.episode_limit, self.n_agents, self.obs_shape]),
-                        's_next': np.empty([self.size, self.episode_limit, self.state_shape]),
-                        'avail_u': np.empty([self.size, self.episode_limit, self.n_agents, self.n_actions]),
-                        'avail_u_next': np.empty([self.size, self.episode_limit, self.n_agents, self.n_actions]),
-                        'u_onehot': np.empty([self.size, self.episode_limit, self.n_agents, self.n_actions]),
-                        'padded': np.empty([self.size, self.episode_limit, 1]),
-                        'terminated': np.empty([self.size, self.episode_limit, 1])
-                        }
         self.create(self.args)
         if self.args.alg == 'maven':
             self.buffers['z'] = np.empty([self.size, self.args.noise_dim])
@@ -50,6 +37,10 @@ class ReplayBuffer:
                         'terminated': np.empty([args.buffer_size, args.episode_limit, 1])
                         }
 
+        for k, v in self.buffers.items():
+            v[:] = 0.0
+
+
         # store the episode
     def store_episode(self, episode_batch):
         batch_size = episode_batch['o'].shape[0]  # episode_number
@@ -70,6 +61,20 @@ class ReplayBuffer:
             self.buffers['terminated'][idxs] = episode_batch['terminated']
             if self.args.alg == 'maven':
                 self.buffers['z'][idxs] = episode_batch['z']
+            #
+            # np.copyto(self.buffers['o'][idxs],  episode_batch['o']) # TODO: self.buffers size needs to change
+            # np.copyto(self.buffers['u'][idxs],  episode_batch['u'])
+            # np.copyto(self.buffers['s'][idxs],  episode_batch['s'])
+            # np.copyto(self.buffers['r'][idxs],  episode_batch['r'])
+            # np.copyto(self.buffers['o_next'][idxs],  episode_batch['o_next'])
+            # np.copyto(self.buffers['s_next'][idxs],  episode_batch['s_next'])
+            # np.copyto(self.buffers['avail_u'][idxs],  episode_batch['avail_u'])
+            # np.copyto(self.buffers['avail_u_next'][idxs],  episode_batch['avail_u_next'])
+            # np.copyto(self.buffers['u_onehot'][idxs],  episode_batch['u_onehot'])
+            # np.copyto(self.buffers['padded'][idxs],  episode_batch['padded'])
+            # np.copyto(self.buffers['terminated'][idxs],  episode_batch['terminated'])
+            # if self.args.alg == 'maven':
+            #     np.copyto(self.buffers['z'][idxs], episode_batch['z'])
 
     def sample(self, batch_size):
         temp_buffer = {}

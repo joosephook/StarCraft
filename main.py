@@ -196,6 +196,7 @@ class Curriculum:
 
     def next_env(self):
         self.train_env, self.episode_limit = self.train_envs.pop(0)
+        self.train_env.buffer.create(self.train_env.buffer.args)
 
     def train(self):
         self.env = self.train_env
@@ -232,38 +233,17 @@ if __name__ == '__main__':
         np.random.seed(seed)
         torch.random.manual_seed(seed)
 
-
         switch = i*1000
         eval_seed = 100
 
-        timestamp = f'{int(time.time())}_combat_{switch}_noreset_epsilon_eval_seed_{eval_seed}'
-        # train_env_duration = [switch, 20_000]
-        # train_env_duration = [20_000]
-        # train_env_duration = [10_000, 20_000]
-        train_env_duration = [
-            # 3000,
-            # 6000,
-            # 8000,
-            20_000,
-            20_000
-        ]
+        timestamp = f'{int(time.time())}_combat_{switch}_noreset_epsilon_seed_{seed}_eval_seed_{eval_seed}'
+        train_env_duration = [switch, 20_000]
         train_envs = [
-            gym.make('Combat-v0', n_opponents=2),
-            # gym.make('Combat-v0', n_opponents=2),
-            # gym.make('Combat-v0', n_opponents=4),
+            gym.make('Combat-v0', n_opponents=1),
             gym.make('Combat-v0', n_opponents=5),
         ]
         eval_env =   gym.make('Combat-v0')
         target_env = gym.make('Combat-v0')
-
-        # timestamp = f'{int(time.time())}_5x5_{switch}_eval_12x12_10A5P_fullmono_notime_noreset_epsilon_eval_seed_{eval_seed}'
-        # train_env_duration = [switch, 20_000]
-        # train_envs = [
-        #     gym.make('PredatorPrey5x5-v0', step_cost=0, penalty=0, seed=0),
-        #     gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12),         n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=0)
-        # ]
-        # eval_env =   gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=eval_seed)
-        # target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0)
 
         env = Curriculum(train_envs, eval_env, target_env, args=args, train_env_duration=train_env_duration)
 
