@@ -183,6 +183,9 @@ class Curriculum:
             if self._train and self.episode_limit is not None and self.env.episode_count >= self.episode_limit:
                 print(f'Old env @ {self.env.episode_count} episodes w/ {self.env.args.n_agents} agents')
                 print(self.runner.rolloutWorker.epsilon)
+                self.env = None
+                del self.train_env
+
                 self.next_env()
                 self.env = self.train_env
                 # self.runner.rolloutWorker.epsilon = 1.0
@@ -227,25 +230,34 @@ if __name__ == '__main__':
 
     # 12x12 10A5P
     # 100x100 40A20P
-    for i in range(11):
+    for i in range(1):
         seed = 2 ** 32-0-1
 
         np.random.seed(seed)
         torch.random.manual_seed(seed)
 
-        switch = i*1000
         eval_seed = 100
 
-        timestamp = f'{int(time.time())}_combat_{switch}_noreset_epsilon_seed_{seed}_eval_seed_{eval_seed}'
-        train_env_duration = [switch, 20_000]
-        train_envs = [
-            gym.make('Combat-v0', n_opponents=1),
-            gym.make('Combat-v0', n_opponents=5),
+        timestamp = f'{int(time.time())}_combat_{i}_noreset_epsilon_seed_{seed}_eval_seed_{eval_seed}'
+
+        train_env_duration = [
+            # 1000,
+            # 2000,
+            # 4000,
+            20_000
         ]
+
         eval_env =   gym.make('Combat-v0')
         target_env = gym.make('Combat-v0')
 
-        env = Curriculum(train_envs, eval_env, target_env, args=args, train_env_duration=train_env_duration)
+        env = Curriculum(
+            [
+                # gym.make('Combat-v0', n_opponents=1),
+                # gym.make('Combat-v0', n_opponents=2),
+                # gym.make('Combat-v0', n_opponents=4),
+                gym.make('Combat-v0', n_opponents=5),
+            ]
+        , eval_env, target_env, args=args, train_env_duration=train_env_duration)
 
         runner = Runner(env, args, timestamp)
         if args.learn:

@@ -80,16 +80,16 @@ def get_coma_args(args):
 def get_mixer_args(args):
     # network
     args.rnn_hidden_dim = 64
-    args.qmix_hidden_dim = 32
+    args.qmix_hidden_dim = 8
     args.two_hyper_layers = False
-    args.hyper_hidden_dim = 64
+    args.hyper_hidden_dim = 256
     args.qtran_hidden_dim = 64
     args.lr = 5e-4
 
     # epsilon greedy
     args.epsilon = 1.0
     args.min_epsilon = 0.05
-    anneal_steps = 50_000
+    anneal_steps = 500*100
     args.anneal_epsilon = (args.epsilon - args.min_epsilon) / anneal_steps
     args.epsilon_anneal_scale = 'step'
 
