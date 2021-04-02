@@ -19,6 +19,7 @@ class ReplayBuffer:
             self.buffers['z'] = np.empty([self.size, self.args.noise_dim])
         # thread lock
         self.lock = threading.Lock()
+        self.initialised = False
 
     def create(self, args):
         # memory management
@@ -37,12 +38,14 @@ class ReplayBuffer:
                         'terminated': np.empty([args.buffer_size, args.episode_limit, 1])
                         }
 
-        for k, v in self.buffers.items():
-            v[:] = 0.0
-
 
         # store the episode
     def store_episode(self, episode_batch):
+        if not self.initialised:
+            for k, v in self.buffers.items():
+                v[:] = 0.0
+            self.initialised = True
+
         batch_size = episode_batch['o'].shape[0]  # episode_number
         with self.lock:
             idxs = self._get_storage_idx(inc=batch_size)
