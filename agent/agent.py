@@ -75,8 +75,6 @@ class Agents:
         if self.args.alg == 'coma' or self.args.alg == 'central_v' or self.args.alg == 'reinforce':
             action = self._choose_action_from_softmax(q_value.cpu(), avail_actions, epsilon, evaluate)
         else:
-            ## WARNING - should add if some actions are NOT available
-            # q_value[avail_actions == 0.0] = - float("inf")
             r = np.random.uniform()
             if r < epsilon:
                 action = np.random.choice(avail_actions_ind)  # action是一个整数

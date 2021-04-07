@@ -80,9 +80,9 @@ def get_coma_args(args):
 def get_mixer_args(args):
     # network
     args.rnn_hidden_dim = 64
-    args.qmix_hidden_dim = 8
+    args.qmix_hidden_dim = 32
     args.two_hyper_layers = False
-    args.hyper_hidden_dim = 256
+    args.hyper_hidden_dim = 64
     args.qtran_hidden_dim = 64
     args.lr = 5e-4
 
