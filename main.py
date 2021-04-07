@@ -125,18 +125,19 @@ if __name__ == '__main__':
 
         eval_seed = 100+i
 
-        timestamp = f'{int(time.time())}_combat_{i}_noreset_epsilon_seed_{seed}_eval_seed_{eval_seed}'
+        timestamp = f'{int(time.time())}_predator_{i}_noreset_epsilon_seed_{seed}_eval_seed_{eval_seed}'
 
         train_env_duration = [
             20_000,
         ]
 
-        eval_env =   gym.make('Combat-v0', seed=eval_seed)
-        target_env = gym.make('Combat-v0')
+        timestamp = f'{int(time.time())}_12x12_10A5P_fullmono_notime_noreset_epsilon_seed_{seed}_eval_seed_{eval_seed}'
+        eval_env =   gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=eval_seed)
+        target_env = gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12), n_agents=10, n_preys=5, step_cost=0, penalty=0)
 
         env = Curriculum(
             [
-                gym.make('Combat-v0', n_agents=5, n_opponents=5)
+                gym.make('PredatorPrey5x5-v0', grid_shape=(12, 12),      n_agents=10, n_preys=5, step_cost=0, penalty=0, seed=0)
             ]
         , eval_env, target_env, args=args, train_env_duration=train_env_duration)
 
